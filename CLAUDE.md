@@ -4,99 +4,117 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-OpenShorts is an AI-powered vertical video generator that transforms long YouTube videos or local uploads into viral-ready short clips (9:16 format) for TikTok, Instagram Reels, and YouTube Shorts. Uses Google Gemini 2.0 Flash for viral moment detection and title generation.
+OpenShorts is an AI-powered vertical video generator that turns long YouTube videos or local uploads into short 9:16 clips for TikTok, Instagram Reels and YouTube Shorts. Google Gemini 3.1 Flash-Lite (`gemini-3.1-flash-lite`, overridable with `GEMINI_MODEL`) picks the viral moments and writes the titles. It ships as self-host (BYOK) and as a Cloud edition (`BILLING_ENABLED`, code under `cloud/`).
 
 ## Development Commands
 
-### Local Development (Docker)
 ```bash
-docker compose up --build   # Build and run full stack
-```
-- Backend: http://localhost:8000 (FastAPI/Uvicorn)
-- Frontend: http://localhost:5175 (Vite proxies API calls to backend)
+docker compose up --build        # full stack: backend :8000 (FastAPI), frontend :5175 (Vite proxies the API)
 
-### Frontend Only (Dashboard)
-```bash
-cd dashboard
-npm install
-npm run dev       # Dev server with HMR (port 5173)
-npm run build     # Production build
-npm run lint      # ESLint (strict, --max-warnings 0)
-```
+cd dashboard && npm install
+npm run dev                      # dev server with HMR (:5173)
+npm run build                    # production build (CI runs this)
+npm run lint                     # ESLint, --max-warnings 0
 
-### Backend Only
-```bash
 pip install -r requirements.txt
 uvicorn app:app --host 0.0.0.0 --port 8000
+pytest tests/ -v                 # CI runs this without the heavy ML stack
 ```
 
-## Architecture
+## Pipeline
 
-### Core Processing Pipeline
-1. **Ingest** - YouTube download (yt-dlp) or local upload
-2. **Transcription** - faster-whisper with word-level timestamps
-3. **Scene Detection** - PySceneDetect for segment boundaries
-4. **AI Analysis** - Gemini identifies 3-15 viral moments (15-60 sec each)
-5. **FFmpeg Extraction** - Precise clip cutting
-6. **AI Cropping** - Vertical reframing with subject tracking
-7. **Effects/Subtitles** - Optional AI-generated FFmpeg filters
-8. **Hook Overlay** - Text overlays with styled fonts
-9. **Voice Dubbing** - Optional ElevenLabs AI translation (30+ languages)
-10. **S3 Backup** - Silent background upload
-11. **Social Distribution** - Upload-Post API (async upload)
+Ingest (yt-dlp or upload) → transcription (word timestamps) → scene detection → Gemini picks moments (15-60 s) → FFmpeg cut → vertical reframing → effects/subtitles → hook overlay → optional ElevenLabs dubbing → S3/R2 backup → optional social posting via Upload-Post.
 
-### Key Files
-| File | Purpose |
-|------|---------|
-| `main.py` | Core video processing: transcription, scene detection, clip extraction, vertical reframing |
-| `app.py` | FastAPI server with async job queue and REST endpoints |
-| `editor.py` | Gemini AI integration for dynamic video effects (FFmpeg filter generation) |
-| `hooks.py` | Hook text overlay generation with font rendering |
-| `s3_uploader.py` | AWS S3 upload with caching |
-| `subtitles.py` | SRT generation, FFmpeg subtitle burning, and dubbed video transcription |
-| `translate.py` | ElevenLabs dubbing API for AI voice translation |
-| `dashboard/src/App.jsx` | Main React component with state management |
-| `dashboard/src/components/TranslateModal.jsx` | Voice dubbing UI with language selection |
+## Key Files
 
-### Dual-Mode Video Reframing
-- **TRACK Mode** (single subject): MediaPipe face detection + YOLOv8 fallback with "Heavy Tripod" stabilization
-- **GENERAL Mode** (groups/landscapes): Blurred background layout preserving full width
+- `main.py`: core processing (transcription, scene detection, clip extraction, reframing). Runs as a child process per job.
+- `app.py`: FastAPI server, job queue, REST endpoints, deploy handover/drain.
+- `clip_selection.py`, `layout_picker.py`, `reframe_v2.py`, `split_layout.py`, `screencast_layout.py`, `camera_inset.py`: moment picking and layouts.
+- `editor.py` (Gemini FFmpeg effects), `pro_mode.py` (talking-head re-edit), `hooks.py` (hook overlays), `subtitles.py` (SRT/ASS, burning), `translate.py` (ElevenLabs dubbing), `thumbnail.py`.
+- `mcp_server.py`, `mcp_stdio.py`: MCP over HTTP and stdio.
+- `cloud/`: auth, API keys, metering, billing, lifecycle emails, account erasure, autopilot, proxy ledger, alerts, queue watch.
+- `dashboard/src/App.jsx`: main React component. `dashboard/vite-plugin-seo.js` + `dashboard/seo/`: build-time SEO pages, sitemap, llms.txt. `dashboard/seo/data.js`: single source of truth for pricing/pipeline/competitor facts.
 
-### Key Classes
-- `SmoothedCameraman` - Stabilized camera movement with safe zone logic (prevents jitter)
-- `SpeakerTracker` - Prevents rapid speaker switching, handles temporary occlusions
+## Subsystem reference (read before touching)
 
-### API Endpoints
-| Method | Route | Purpose |
-|--------|-------|---------|
-| POST | `/api/process` | Submit video for processing |
-| GET | `/api/status/{job_id}` | Poll job status and logs |
-| POST | `/api/edit` | Apply AI video effects |
-| POST | `/api/subtitle` | Generate and apply subtitles (auto-transcribes dubbed videos) |
-| POST | `/api/hook` | Add text hook overlays |
-| POST | `/api/translate` | AI voice dubbing via ElevenLabs |
-| GET | `/api/translate/languages` | List supported dubbing languages |
-| POST | `/api/social/post` | Post to social media (async upload) |
+- SEO pages, free tools, attribution → `docs/architecture/seo-and-tools.md`
+- Layout picker, reframing modes, hook grounding → `docs/architecture/layouts-and-reframing.md`
+- Clip count, silent-footage fallback, local LLM → `docs/architecture/clip-selection.md`
+- Thumbnail Studio → `docs/architecture/thumbnails.md`
+- Pro mode (talking-head re-edit, per-clip switch) → `docs/architecture/pro-mode.md`
+- API endpoints, API keys, MCP, OAuth, webhooks → `docs/architecture/agent-access.md`
+- Autopilot → `docs/architecture/autopilot.md`
+- Free-plan watermark (served `wm_` copy, unmark on upgrade) → `docs/architecture/watermark.md`
+- Quota wall, free overflow, lifecycle emails, cancel flow, survey, GDPR erasure, paid-source archive, support-ops API → `docs/architecture/billing-and-account.md`
+- Concurrency/VRAM, auto-retry, deploy handover and drain → `docs/architecture/jobs-and-deploys.md`
+- Download routing, yt-dlp clients, paid proxy ledger → `docs/architecture/proxy-routing.md`
+- Remote CPU worker (second host renders free jobs) → `docs/architecture/remote-worker.md`
 
-### Concurrency Model
-Async job queue with semaphore-based concurrency control. Configure via `MAX_CONCURRENT_JOBS` env var (default: 5). Jobs auto-cleanup after 1 hour.
+## Hard rules
 
-## Environment Variables
+**SEO / site**
+- Keep `seo/landing-fallback.js` in sync with `Landing.jsx`. Never add a static `public/sitemap.xml` back: `vite-plugin-seo.js` generates it.
+- Standalone pages are emitted as flat `.html` files (directories make nginx 301 and break canonicals).
+- When editing pricing anywhere, edit `seo/data.js` too. Never say "OpenShorts is free" without the Cloud price next to it.
+- `/gta-5-clips`, `/gta-6-clips` and `/platforms/twitch` state the silent-footage thresholds and stretch sizes: change their copy if that behaviour changes.
 
-**Server-side (.env):**
-- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_S3_BUCKET` - For S3 backup
-- `MAX_CONCURRENT_JOBS` - Concurrent processing limit (default: 5)
-- `VITE_API_URL` - Production API URL override
+**Free tools**
+- The youtube-transcript tool uses `STATIC_PROXY_URLS` (or direct) only, **never** `PROXY_URL`. A static route returning zero formats and zero captions is degraded, not "no captions".
 
-**Client-side (localStorage, encrypted):**
-- `GEMINI_API_KEY` - Google Gemini API key (required)
-- `ELEVENLABS_API_KEY` - ElevenLabs API key for voice dubbing (optional)
-- `UPLOAD_POST_API_KEY` - Upload-Post API key for social posting (optional)
+**Layouts and rendering**
+- `layout_picker` sends 12 frames at 1024px and asks for a closed choice, never the video and never a measurement.
+- `layout_picker.apply()` only adds options: an explicit user choice is never turned off by the model.
+- A source that is already vertical skips the picker and classifier and renders TRACK.
+- SPLIT captions need ASS with `{\an5}` per word event on the seam; SRT cannot do per-stretch alignment. Preserve `layout_ranges` through recut (`layout_ranges.remap`).
+- Mouth activity is normalised per speaker before comparing (`normalise_activity`).
+- The reframe render runs in one GPU pass (`gpu_render` + `osrender/`) built from the scenes' own filtergraphs: a layout graph that `gpu_render.layers_from_graph` cannot read silently renders through ffmpeg, so keep new layouts to crop/scale/gblur/overlay/vstack/pad and run `tests/test_gpu_render_equivalence.py` on a GPU. After editing `osrender/src/kernels.cu`, regenerate `kernels.ptx` (see `osrender/README.md`).
+- Pro mode (`pro_mode.py`) renders frame by frame on the CPU: always through `pro_mode.run` (own process, host slot), never inside the API or a job thread, and `PRO_MODE=auto` stays opt-in. The pro file is a `recut_` with its `recipe`; never a new filename prefix.
+- Canonical files are always clean; the free-plan mark exists only on the served `wm_` copy (`main.mark_delivery` / `app._deliver`). While a job has `.marked`, `/videos` refuses its clean deliverables.
 
-> API keys are stored encrypted in the browser and sent via headers only when needed. Never stored server-side.
+**Clip selection**
+- The scoring pass ranks every window (global top N), never "choose up to K per batch". The `min_clips` floor is enforced in code.
+- `get_visual_clips` is the only stage that sends Gemini the video; past `VISION_SEGMENT_SECONDS` it watches near-equal stretches (`vision_segments`), never one upload of the whole source.
 
-## Tech Stack
-- **Backend:** Python 3.11, FastAPI, google-genai, faster-whisper, ultralytics (YOLOv8), mediapipe, opencv-python, yt-dlp, FFmpeg, httpx
-- **Frontend:** React 18, Vite 4, Tailwind CSS 3.4
-- **External APIs:** Google Gemini, ElevenLabs Dubbing, Upload-Post
-- **Infrastructure:** Docker + Docker Compose, AWS S3
+**Jobs, GPU, deploys**
+- Call `transcribe_backends.release_models()` after any ASR (job processes and in-API transcriptions alike). Size `MAX_CONCURRENT_JOBS` by free VRAM first.
+- `DRAIN_TIMEOUT_SECONDS` must stay below the deployment's (Coolify) stop grace period. The image must ship `curl` for the platform health check.
+- A drain-cancelled job keeps its manifest and reservation and is resumed, never marked failed or completed.
+- The disk sweeps and size caps delete only what `_job_is_active` / `_upload_is_live` call dead: a submission counts as live from its `_begin_job_dir` (source still streaming in) and an agent upload slot until it expires.
+- The remote worker gets job options, the source and the transcript this host prepared for it (`PREPARE_TRANSCRIPT`), never a credential, and writes only plain non-dot output files into its job's directory (`remote_worker.job_options`, `safe_relpath`). A remote job holds no GPU slot (`_local_running`); new per-job state it needs lives as files in the job dir, not in memory.
+- Whatever is read back from a job directory (recipes, metadata, sidecars, subtitles, log lines) is data from possibly another machine: numbers as numbers, text as text, never pasted into an ffmpeg filter graph, a path or markup. A filter string that is not a plain chain of `editor._ALLOWED_FILTERS` is not run.
+
+**Download proxies**
+- Route order is direct → static → paid (per-GB `PROXY_URL`). Never use the paid proxy for non-YouTube URLs, nor for failures another IP cannot fix (`static_failure_warrants_paid`).
+- The probe also carries `YOUTUBE_COOKIES`, like the download does; first attempt with cookies, second anonymous, on probe and download alike.
+- Keep the explicit `yt_clients.py` client list; never put `player_skip: webpage` back. `noplaylist` always; non-video URLs refused by an allowlist.
+- Every yt-dlp extraction that sends `YOUTUBE_COOKIES` takes its cookie file from a `yt_account.Session` (one of the configured accounts, `YOUTUBE_COOKIES_2`.. add more) and runs inside its `request()`, and none is sent while `yt_account.cooling_down()`: each account's budget is shared by every probe and download. A failure that is only the account limit is retried after the cooldown (`YT_ACCOUNT_LIMITED`), never reported as a broken video. An age-restricted refusal moves the video to another account (`Session.age_gated`), never to the paid proxy.
+- A YouTube video is fetched once per `SOURCE_CACHE_HOURS` (`source_cache.py`: source, transcript and probe by video id). Only whole sources over a free route go in (never ranged, never the per-GB proxy's 720p); a new dot entry of `output/` that holds data stays out of `app._output_jobs_size`.
+- `DOWNLOAD_SKIP_STATICS` only when the probe saw every static bot-checked. `PAID_PROXY_DAILY_MB` is the hard daily ceiling. Never keep `PROXY_URL` in a local `.env`.
+
+**Agent access**
+- MCP stdio: swap `sys.stdout` for stderr **before importing `app`**, and enter the app lifespan.
+- Webhook URLs go through `security_utils.assert_public_url` at submit AND at delivery.
+- API-key auth can never manage keys, consent to OAuth, touch billing or delete the account (`get_session_user_required`). OAuth tokens are ordinary `osk_` keys that carry their scope (`cloud/scopes.py`): a new MCP tool endpoint joins `_MCP_ROUTES`.
+- Cloud `/videos` and `/thumbnails` answer only to a signature, the owner's media token or the owner's credentials (`app._authorize_media`). Any media URL handed outside the dashboard (MCP, webhook, API) goes through `_signed_media_url` / `media_auth.sign_absolute_url`; a new job-like directory writes `.owner`.
+- The Google callback redirects with a single-use code bound to the dashboard's `cc` challenge, never the session JWT (`/api/auth/exchange`).
+- yt-dlp and server-side scrapes run inside `ssrf_guard.guarded()`: redirects and DNS answers are checked at connect time, not only the submitted URL.
+
+**Billing, account, privacy**
+- GDPR erasure order is fixed: Stripe cancel (abort on failure) → R2 purge → one DB transaction over `USER_OWNED_TABLES`. Never via API key. Every new table referencing `users.id` joins `USER_OWNED_TABLES` (a test enforces it).
+- A paid job's source goes to R2 only under `users/<uid>/<job>/source/` with a random name (`cloud/source_archive.py`): never restored with the project, deleted after `SOURCE_ARCHIVE_DAYS` by the daily sweep, and read back only through `_archived_source` / `_locate_or_fetch_source` after the owner check. A change to its retention changes `docs/compliance/retencion.md` and the privacy policy in the same commit.
+- Coupon ids and promotion codes live only in env / Stripe, never in this repo.
+- Cancel and churn alerts carry the reason and rating, never the user's free text. Deletion reasons are a closed list.
+- `reserve_process_minutes` never reserves more than the balance, whatever the client asks; the source cut travels in the resume manifest.
+- Lifecycle/commercial emails go through `emails.send_commercial_email` (opt-out + unsubscribe headers), once per account per kind.
+- The support-ops API (`cloud/support_ops.py`, `/api/support-ops/v1`) is 404 unless its keys are set, never emails the customer, never calls Stripe and writes only the account in the path; every write is a dry run unless `dry_run: false` + ticket, and returns a `before` that `restore` can write back. A banned account (`users.ban_reason`) authenticates as nobody.
+
+**Public repo**
+- This repository is public: no hosts, IPs, server paths, production metrics, business figures or customer data in code, comments, docs or commit messages.
+- The free slow lane's countries (`FREE_SLOW_LANE_COUNTRIES`) live only in the deployment env: tests and docs use user-assigned codes (`XA`, `XB`), and no user-facing text names a country or region (`cloud/queue_mode.py`).
+
+## CI: a green pipeline closes the task, not the push
+
+- Before pushing, run locally what CI runs: `pytest tests/ -v` and `npm run build` (+ `npm run lint`) in `dashboard/`.
+- After every `git push`, wait for the commit's workflow and confirm it is green: `ci-wait` if available, or `gh run watch $(gh run list -c $(git rev-parse HEAD) -L1 --json databaseId -q ".[0].databaseId") --exit-status`.
+- If it is red: fix, push, check again. Never report the task as done with a red CI.
+- Every push to `main` redeploys the API; the dashboard app redeploys only when the push changes `dashboard/`. Batch small commits (tests, docs) with the next real change when possible.
