@@ -65,7 +65,7 @@ export default function PlanChoiceModal({ onClose }) {
       ) : (
         <div className="grid sm:grid-cols-2 gap-4">
           {/* Free — the default */}
-          <div className="card p-5 flex flex-col border-brass">
+          <div className="card bg-paper border border-brass p-5 flex flex-col shadow-xs">
             <div className="flex items-center justify-between mb-1">
               <h3 className="font-display lowercase text-lg text-ink">free</h3>
               <span className="badge-ok">$0</span>
@@ -83,7 +83,7 @@ export default function PlanChoiceModal({ onClose }) {
           </div>
 
           {/* Paid — compact list */}
-          <div className="card p-5 flex flex-col">
+          <div className="card bg-paper border border-rule2 p-5 flex flex-col shadow-xs">
             <div className="flex items-center justify-between mb-1">
               <h3 className="font-display lowercase text-lg text-ink">paid plans</h3>
               <Zap size={16} className="text-brass" />
@@ -95,7 +95,7 @@ export default function PlanChoiceModal({ onClose }) {
                 if (!e) return null;
                 return (
                   <button key={p} onClick={() => checkout(e.price_id)} disabled={busy === e.price_id}
-                    className="w-full flex items-center justify-between border border-rule hover:border-brass rounded-input px-3 py-2 text-left transition-colors disabled:opacity-50">
+                    className="w-full flex items-center justify-between border border-rule hover:border-brass rounded-input px-3 py-2 text-left bg-paper2 hover:bg-paper3 transition-colors disabled:opacity-60">
                     <span className="text-sm text-ink capitalize">{p} <span className="text-muted">· {e.minutes} min</span></span>
                     <span className="readout">{busy === e.price_id ? '…' : `${fmt(e.amount, e.currency)}/mo`}</span>
                   </button>

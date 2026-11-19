@@ -181,7 +181,7 @@ export default function TopUpModal({ onClose, required, remaining, partialMinute
       )}
 
       {partialOffer && (
-        <div className="mb-5 card p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="mb-5 card bg-paper border border-rule2 p-4 flex flex-col sm:flex-row sm:items-center gap-3 shadow-xs">
           <div className="flex-1 text-sm text-ink2">
             <b className="text-ink font-medium">Or see it first:</b> clip the first{' '}
             <b className="text-ink font-medium">{partialMinutes} min</b> now with the minutes you have,
@@ -199,7 +199,7 @@ export default function TopUpModal({ onClose, required, remaining, partialMinute
           const highlight = entry.plan === highlightPlan;
           return (
             <div key={entry.price_id}
-                 className={`relative card p-5 flex flex-col ${highlight ? 'border-brass' : ''}`}>
+                 className={`relative card bg-paper p-5 flex flex-col shadow-xs ${highlight ? 'border-2 border-brass ring-1 ring-brass/20' : 'border border-rule2'}`}>
               {highlight && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 badge-float">
                   {entry.plan === 'creator' ? 'Most popular' : 'Removes the mark'}
@@ -257,7 +257,7 @@ export default function TopUpModal({ onClose, required, remaining, partialMinute
           <div className="grid grid-cols-2 gap-3 mt-2">
             {topups.map((t) => (
               <button key={t.price_id} onClick={() => buy(t, 'topup')} disabled={busyPrice !== null}
-                      className="border border-rule hover:border-brass rounded-card p-3 text-left transition-colors disabled:opacity-50">
+                      className="border border-rule2 bg-paper hover:bg-paper3 hover:border-brass rounded-card p-3 text-left transition-colors disabled:opacity-60 shadow-xs">
                 <div className="text-ink text-sm font-medium flex items-center gap-1.5">
                   <Clock size={14} className="text-muted" />+{t.minutes} min
                 </div>

@@ -139,23 +139,23 @@ export default function ReframeEditor({ jobId, clipIndex, clipTitle, onClose, on
     return (
         /* Bottom sheet on a phone, centred dialog from sm — same shape as the
            shared Modal so the app has one overlay idiom, not two. */
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
             <div className="card w-full max-w-3xl max-h-[92vh] sm:max-h-[90vh] flex flex-col rounded-b-none sm:rounded-card animate-sheet-up sm:animate-none">
                 <div className="flex items-center justify-between p-4 border-b border-rule">
                     <div className="flex items-center gap-2.5 min-w-0">
                         <Crosshair size={18} className="text-brass shrink-0" />
                         <div className="min-w-0">
                             <h2 className="text-base font-medium text-ink lowercase truncate">reframing</h2>
-                            {clipTitle && <p className="text-xs text-muted truncate">{clipTitle}</p>}
+                            {clipTitle && <p className="text-xs text-ink2 truncate font-medium">{clipTitle}</p>}
                         </div>
                     </div>
                     <button onClick={onClose} className="p-1.5 hover:bg-paper3 rounded-input transition-colors">
-                        <X size={18} className="text-muted" />
+                        <X size={18} className="text-ink2" />
                     </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto overscroll-contain custom-scrollbar p-4 space-y-5">
-                    <p className="text-xs text-muted leading-relaxed">
+                    <p className="text-xs text-ink2 leading-relaxed font-medium">
                         Play a scene to hear who is talking, then drag the rectangle over
                         the person you want. Each scene is one camera. Scenes you leave
                         alone keep the automatic camera.
@@ -194,7 +194,7 @@ export default function ReframeEditor({ jobId, clipIndex, clipTitle, onClose, on
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-t border-rule">
-                    <span className="text-xs text-muted">
+                    <span className="text-xs text-ink font-medium">
                         {adjusted === 0
                             ? 'nothing adjusted yet'
                             : `${adjusted} scene${adjusted > 1 ? 's' : ''} reframed by hand`}
@@ -288,7 +288,7 @@ function SceneRow({ scene, value, widthFraction, previewUrl, touched, playing,
                 style={{ left: `${leftPct}%`, width: `${widthFraction * 100}%` }}
             >
                 {label && (
-                    <span className="absolute top-1 left-1 text-[10px] px-1 rounded bg-brass text-paper lowercase">
+                    <span className="absolute top-1 left-1 text-[10px] px-1.5 py-0.5 rounded font-mono font-medium bg-brass text-brassink lowercase">
                         {label}
                     </span>
                 )}
@@ -307,25 +307,25 @@ function SceneRow({ scene, value, widthFraction, previewUrl, touched, playing,
                     >
                         {playing ? <Pause size={13} /> : <Play size={13} />}
                     </button>
-                    <span className="readout text-muted truncate">
+                    <span className="readout text-ink font-semibold truncate">
                         scene {scene.index + 1} · {fmt(scene.start)}–{fmt(scene.end)}
                     </span>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                     <button
                         onClick={onToggleSplit}
-                        className={`flex items-center gap-1 transition-colors ${
-                            isSplit ? 'text-brass' : 'text-muted hover:text-ink2'}`}
+                        className={`flex items-center gap-1 transition-colors font-medium ${
+                            isSplit ? 'text-brass' : 'text-ink2 hover:text-ink'}`}
                         title="stack two regions instead of one window"
                     >
                         <Columns2 size={12} /> split
                     </button>
                     {touched ? (
-                        <button onClick={onReset} className="flex items-center gap-1 text-brass hover:underline">
+                        <button onClick={onReset} className="flex items-center gap-1 text-brass font-medium hover:underline">
                             <RotateCcw size={12} /> automatic
                         </button>
                     ) : (
-                        <span className="text-muted">automatic</span>
+                        <span className="text-ink2 font-medium">automatic</span>
                     )}
                 </div>
             </div>
@@ -350,7 +350,7 @@ function SceneRow({ scene, value, widthFraction, previewUrl, touched, playing,
                         className="w-full block pointer-events-none"
                     />
                 ) : (
-                    <div className="w-full aspect-video bg-paper3" />
+                    <div className="w-full aspect-video bg-paper3 border border-rule" />
                 )}
 
                 {/* Everything outside the kept region is dimmed, so what survives

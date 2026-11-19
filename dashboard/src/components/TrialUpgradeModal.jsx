@@ -55,19 +55,19 @@ export default function TrialUpgradeModal({ plan, onActivated, onClose }) {
         <div className="text-center py-4">
           <div className="inline-flex p-3 bg-paper3 rounded-full text-ok mb-4"><CheckCircle2 size={24} /></div>
           <h2 className="font-display lowercase text-xl text-ink mb-1">You're all set</h2>
-          <p className="text-muted text-sm">Your plan is active{planMinutes ? ` with ${planMinutes} minutes` : ''}. Go ahead and generate your clips.</p>
+          <p className="text-ink2 text-sm">Your plan is active{planMinutes ? ` with ${planMinutes} minutes` : ''}. Go ahead and generate your clips.</p>
         </div>
       ) : (
         <>
           <div className="inline-flex p-3 bg-paper3 rounded-full text-brass mb-4"><Rocket size={24} /></div>
           <h2 className="font-display lowercase text-xl text-ink mb-1">You've used your free trial minutes</h2>
-          <p className="text-muted text-sm mb-6">
-            Activate your{plan ? <> <span className="capitalize font-medium text-ink">{plan}</span></> : ''} plan now to unlock{' '}
-            {planMinutes ? <><b className="text-ink font-medium">{planMinutes} minutes</b> every month</> : 'your full monthly minutes'} and keep creating.
+          <p className="text-ink2 text-sm mb-6 leading-relaxed">
+            Activate your{plan ? <> <span className="capitalize font-semibold text-ink">{plan}</span></> : ''} plan now to unlock{' '}
+            {planMinutes ? <><b className="text-ink font-semibold">{planMinutes} minutes</b> every month</> : 'your full monthly minutes'} and keep creating.
             Your card is charged today and your 3-day trial ends now.
           </p>
 
-          {error && <p className="text-warn text-xs mb-4">{error}</p>}
+          {error && <p className="text-warn text-xs mb-4 font-medium">{error}</p>}
 
           <button
             onClick={activate}
@@ -79,7 +79,7 @@ export default function TrialUpgradeModal({ plan, onActivated, onClose }) {
           <button
             onClick={onClose}
             disabled={busy}
-            className="w-full mt-2 text-muted hover:text-ink text-sm lowercase py-2 disabled:opacity-60 transition-colors"
+            className="w-full mt-2 text-ink2 hover:text-ink text-sm lowercase py-2 disabled:opacity-60 font-medium transition-colors"
           >
             Maybe later
           </button>

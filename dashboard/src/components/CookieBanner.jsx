@@ -58,7 +58,7 @@ export default function CookieBanner() {
       aria-label="Cookie and tracker preferences"
       className="fixed inset-x-0 bottom-0 z-50 p-3 sm:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
     >
-      <div className="card mx-auto max-w-3xl p-4 sm:p-5 space-y-4 shadow-2xl">
+      <div className="card bg-paper2 border border-rule2 rounded-card mx-auto max-w-3xl p-4 sm:p-5 space-y-4 shadow-2xl">
         <div className="space-y-2">
           <h2 className="font-display lowercase text-lg text-ink">Before we count anything</h2>
           <p className="text-sm text-ink2">

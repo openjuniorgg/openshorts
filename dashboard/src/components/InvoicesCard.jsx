@@ -44,18 +44,18 @@ export default function InvoicesCard() {
       <h3 className="font-display lowercase text-lg text-ink mb-1 flex items-center gap-2">
         <FileText size={16} className="text-brass" /> Invoices
       </h3>
-      <p className="text-muted text-sm mb-4 lowercase">
+      <p className="text-ink2 text-sm mb-4 lowercase font-medium">
         Legally valid invoices for every charge on this account.
       </p>
 
       {invoices === null ? (
-        <div className="flex items-center gap-2 text-muted text-sm py-4">
+        <div className="flex items-center gap-2 text-ink2 text-sm py-4">
           <Loader2 size={16} className="animate-spin text-brass" /> Loading invoices…
         </div>
       ) : error ? (
-        <p className="text-sm text-warn">{error}</p>
+        <p className="text-sm text-warn font-medium">{error}</p>
       ) : invoices.length === 0 ? (
-        <p className="text-sm text-muted">
+        <p className="text-sm text-ink2">
           No invoices yet. They appear here after your first payment — give it a few minutes if you just subscribed.
         </p>
       ) : (
@@ -63,9 +63,9 @@ export default function InvoicesCard() {
           {invoices.map((inv) => (
             <li key={inv.doc_number || inv.public_url} className="py-3 flex items-center justify-between gap-3 flex-wrap">
               <div className="min-w-0">
-                <div className="text-ink font-medium font-mono text-xs">{inv.doc_number}</div>
-                <div className="text-muted text-xs mt-0.5">
-                  {formatDate(inv.doc_date)} · <span className="text-ink2">{formatMoney(inv.total, inv.currency)}</span>
+                <div className="text-ink font-semibold font-mono text-xs">{inv.doc_number}</div>
+                <div className="text-ink2 text-xs mt-0.5">
+                  {formatDate(inv.doc_date)} · <span className="text-ink font-semibold">{formatMoney(inv.total, inv.currency)}</span>
                   {inv.status && (
                     <span className={`ml-2 ${STATUS_CLASS[inv.status] || 'badge-warn'}`}>{inv.status.replace(/_/g, ' ')}</span>
                   )}

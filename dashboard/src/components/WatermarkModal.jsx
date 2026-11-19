@@ -74,9 +74,9 @@ export default function WatermarkModal({ onClose, onContinue, onUpgrade, preview
 
   return (
     <Modal isOpen onClose={() => close(false)} eyebrow="FREE PLAN" title="Want the watermark off?" size="md">
-      <p className="text-muted text-sm mb-4">
+      <p className="text-ink2 text-sm mb-4 leading-relaxed">
         Clips on the free plan carry the OpenShorts mark and are deleted after 7 days.
-        Upgrade and <b className="text-ink font-medium">these exact clips lose the mark on the spot</b>,
+        Upgrade and <b className="text-ink font-semibold">these exact clips lose the mark on the spot</b>,
         no re-render, and stay in your library for good.
       </p>
 
@@ -94,7 +94,7 @@ export default function WatermarkModal({ onClose, onContinue, onUpgrade, preview
       </div>
 
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <label className="flex items-center gap-2 text-sm text-muted cursor-pointer">
+        <label className="flex items-center gap-2 text-sm text-ink2 cursor-pointer font-medium">
           <input
             type="checkbox"
             checked={dontShow}

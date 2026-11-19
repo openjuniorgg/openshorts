@@ -13,10 +13,10 @@ export default function StarBanner({ message = 'Enjoying OpenShorts?' }) {
       href={REPO_URL}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center gap-2 px-3 py-2 rounded-input bg-paper3 border border-rule text-sm text-muted hover:text-ink transition-colors"
+      className="flex items-center gap-2 px-3 py-2 rounded-input bg-paper3 border border-rule text-sm text-ink2 font-medium hover:text-ink transition-colors"
     >
-      <Github size={14} className="shrink-0" />
-      <span>{message} <span className="text-brass">Star us on GitHub ⭐</span></span>
+      <Github size={14} className="shrink-0 text-ink" />
+      <span>{message} <span className="text-brass font-semibold">Star us on GitHub ⭐</span></span>
     </a>
   );
 }

@@ -97,7 +97,7 @@ export default function McpConnectCard({ cloud = true, compact = false }) {
       <h3 className="font-display lowercase text-lg text-ink mb-1 flex items-center gap-2">
         <Plug size={16} className="text-brass" /> Connect an agent
       </h3>
-      <p className="text-muted text-sm mb-4">
+      <p className="text-ink2 text-sm mb-4 leading-relaxed">
         Let Claude, ChatGPT, Cursor or n8n clip and publish for you through the built-in MCP server:
         8 tools (process a video or upload one, check a job, list clips, add subtitles, recut, publish, quota).
         {cloud
@@ -113,7 +113,7 @@ export default function McpConnectCard({ cloud = true, compact = false }) {
             aria-selected={c.id === active}
             onClick={() => { setActive(c.id); setCopied(false); }}
             className={`px-3 py-1.5 rounded-input text-xs border transition-colors ${
-              c.id === active ? 'border-brass text-ink bg-brass/10' : 'border-rule text-muted hover:text-ink'}`}
+              c.id === active ? 'border-brass text-ink bg-brass/10 font-semibold' : 'border-rule text-ink2 hover:text-ink font-medium'}`}
           >
             {c.label}
           </button>
@@ -134,7 +134,7 @@ export default function McpConnectCard({ cloud = true, compact = false }) {
           {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
-      {current.note && <p className="text-muted text-xs mt-2">{current.note}</p>}
+      {current.note && <p className="text-ink2 text-xs mt-2 font-medium">{current.note}</p>}
     </div>
   );
 }

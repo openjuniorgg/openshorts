@@ -56,7 +56,7 @@ export default function LoginModal({ onClose, queued = false }) {
       <p className="text-muted text-sm mb-6 lowercase">Access your plan and generate shorts with no API keys.</p>
 
       {queued && (
-        <div className="flex items-start gap-2 border border-rule2 rounded-input bg-paper2 px-3 py-2 mb-5">
+        <div className="flex items-start gap-2 border border-rule2 rounded-input bg-paper px-3 py-2.5 mb-5 shadow-xs">
           <Check size={14} className="mt-0.5 shrink-0 text-ok" />
           <p className="text-xs text-ink2 leading-relaxed m-0">
             Your video is saved. Sign in and the clips start on their own — you will not have to paste it again.

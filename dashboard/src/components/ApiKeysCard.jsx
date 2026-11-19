@@ -51,7 +51,7 @@ export default function ApiKeysCard() {
       <h3 className="font-display lowercase text-lg text-ink mb-1 flex items-center gap-2">
         <KeyRound size={16} className="text-brass" /> API keys
       </h3>
-      <p className="text-muted text-sm mb-4">
+      <p className="text-ink2 text-sm mb-4 leading-relaxed">
         Keys for CLI clients, scripts and the REST API (see &ldquo;Connect an agent&rdquo; above).
         Apps connected through claude.ai or ChatGPT show up here too: revoking a key disconnects
         that app. Keys use your plan&apos;s minutes.
@@ -84,11 +84,11 @@ export default function ApiKeysCard() {
                     <code className="readout">{k.prefix}…</code>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-muted text-xs lowercase">
+                    <span className="text-ink2 text-xs lowercase font-medium">
                       {k.last_used_at ? `used ${new Date(k.last_used_at).toLocaleDateString()}` : 'never used'}
                     </span>
                     <button onClick={() => revoke(k)} title="Revoke key"
-                            className="text-muted hover:text-warn transition-colors">
+                            className="text-ink2 hover:text-warn transition-colors">
                       <Trash2 size={15} />
                     </button>
                   </div>

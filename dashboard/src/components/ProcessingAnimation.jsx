@@ -91,7 +91,7 @@ const ProcessingAnimation = ({ media, isComplete, syncedTime, isSyncedPlaying, s
 
   const containerClasses = `relative w-full aspect-[2/1] sm:aspect-video rounded-card overflow-hidden bg-black border border-rule2 mb-4 sm:mb-8 group animate-fade transition-all duration-500
     ${isComplete && !isSyncedPlaying ? 'grayscale brightness-50' : ''}
-    ${isSyncedPlaying ? 'ring-2 ring-brass ring-offset-2 ring-offset-black' : ''}`;
+    ${isSyncedPlaying ? 'ring-2 ring-brass ring-offset-2 ring-offset-paper' : ''}`;
 
   const getVideoOpacityClass = () => {
     if (isSyncedPlaying) return 'opacity-100'; // Playing: Full visibility
@@ -146,7 +146,7 @@ const ProcessingAnimation = ({ media, isComplete, syncedTime, isSyncedPlaying, s
           justify-between + a truncating left pill degrades instead. */}
       {!isSyncedPlaying && (
           <div className="absolute top-2.5 left-2.5 right-2.5 sm:top-4 sm:left-4 sm:right-4 z-30 flex items-start justify-between gap-2 pointer-events-none">
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/70 readout min-w-0 transition-colors duration-500 ${isComplete ? 'text-ok' : 'text-brass animate-pulse'}`}>
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-paper/90 backdrop-blur-sm border border-rule shadow-sm readout min-w-0 transition-colors duration-500 ${isComplete ? 'text-ok' : 'text-brass animate-pulse'}`}>
               {isComplete
                 ? <CheckCircle size={14} className="shrink-0" />
                 : <Scan size={14} className="shrink-0" />}
@@ -155,7 +155,7 @@ const ProcessingAnimation = ({ media, isComplete, syncedTime, isSyncedPlaying, s
             {/* Carries nothing the left pill doesn't; it is the first thing to
                 go when there is no room. */}
             {!isComplete && (
-              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-black/70 rounded-full readout shrink-0">
+              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-paper/90 backdrop-blur-sm border border-rule shadow-sm rounded-full readout text-ink2 shrink-0">
                 VIRAL_DETECTION: ACTIVE
               </div>
             )}
@@ -171,21 +171,21 @@ const ProcessingAnimation = ({ media, isComplete, syncedTime, isSyncedPlaying, s
                 <div className="w-1 h-1 bg-brass rounded-full animate-ping"></div>
              </div>
              <div className="absolute bottom-1/3 left-1/2 -translate-x-1/2 flex flex-col items-center justify-center gap-2 opacity-60">
-                 <Scissors size={24} className="text-white/20" />
+                 <Scissors size={24} className="text-ink/30" />
              </div>
           </div>
       )}
 
        {/* Synced Playing Indicator */}
        {isSyncedPlaying && (
-           <div className="absolute top-2.5 right-2.5 sm:top-4 sm:right-4 z-30 badge-brass bg-black/70 animate-pulse">
+           <div className="absolute top-2.5 right-2.5 sm:top-4 sm:right-4 z-30 badge-brass bg-paper/90 backdrop-blur-sm border border-brass shadow-sm animate-pulse">
                <Activity size={12} /> Live Sync
            </div>
        )}
 
        {/* Bottom Info Bar */}
       {!isSyncedPlaying && !isComplete && (
-          <div className="hidden sm:flex absolute bottom-0 left-0 right-0 p-4 bg-black/70 z-30 justify-between items-end border-t border-rule">
+          <div className="hidden sm:flex absolute bottom-0 left-0 right-0 p-4 bg-paper/90 backdrop-blur-sm z-30 justify-between items-end border-t border-rule">
               <div className="readout text-brass space-y-1">
                  <div className="flex items-center gap-2"><Activity size={10} className="animate-pulse" /> {'>'} ANALYSIS_THREAD_01: ACTIVE</div>
                  <div className="flex items-center gap-2"><Radio size={10} /> {'>'} AUDIO_TRANSCRIPT: PROCESSING</div>

@@ -73,7 +73,7 @@ export default function DeleteAccountCard() {
       <h3 className="font-display lowercase text-lg text-ink mb-1 flex items-center gap-2">
         <Trash2 size={16} className="text-danger" /> Delete account
       </h3>
-      <p className="text-muted text-sm">
+      <p className="text-ink2 text-sm leading-relaxed">
         Close your OpenShorts account and erase everything we hold about you. This
         cannot be undone.
       </p>
@@ -105,7 +105,7 @@ export default function DeleteAccountCard() {
           </div>
 
           <label className="block">
-            <span className="text-sm text-muted lowercase">Why are you leaving? (optional)</span>
+            <span className="text-sm text-ink2 font-medium lowercase">Why are you leaving? (optional)</span>
             <select
               value={reason}
               onChange={(e) => setReason(e.target.value)}
@@ -119,8 +119,8 @@ export default function DeleteAccountCard() {
           </label>
 
           <label className="block">
-            <span className="text-sm text-muted">
-              Type <b className="text-ink">{email}</b> to confirm
+            <span className="text-sm text-ink2">
+              Type <b className="text-ink font-semibold">{email}</b> to confirm
             </span>
             <input
               value={confirm}

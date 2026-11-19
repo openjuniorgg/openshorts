@@ -952,7 +952,7 @@ export default function ClipEditor({ jobId, clipIndex, clipTitle, onClose, onRer
     // ---- render -------------------------------------------------------------
     if (loadError) {
         return (
-            <div className="fixed inset-0 z-[110] bg-black/70 flex items-center justify-center p-4 animate-fade" onMouseDown={onClose}>
+            <div className="fixed inset-0 z-[110] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-fade" onMouseDown={onClose}>
                 <div className="card p-6 max-w-md" onMouseDown={(e) => e.stopPropagation()}>
                     <p className="eyebrow mb-2">EDITOR · CLIP {clipIndex + 1}</p>
                     <div className="flex items-center gap-2 text-danger text-sm"><AlertCircle size={16} /> {loadError}</div>
@@ -964,7 +964,7 @@ export default function ClipEditor({ jobId, clipIndex, clipTitle, onClose, onRer
 
     if (!edl) {
         return (
-            <div className="fixed inset-0 z-[110] bg-paper/90 flex items-center justify-center animate-fade">
+            <div className="fixed inset-0 z-[110] bg-paper/90 backdrop-blur-sm flex items-center justify-center animate-fade">
                 <div className="flex items-center gap-3 text-muted text-sm lowercase">
                     <Loader2 size={18} className="animate-spin text-brass" /> loading clip recipe…
                 </div>
@@ -992,12 +992,12 @@ export default function ClipEditor({ jobId, clipIndex, clipTitle, onClose, onRer
     const sourceTrack = (
         <div className="shrink-0 select-none">
             <div className="flex items-center justify-between mb-1.5 gap-3">
-                <p className="readout">
+                <p className="readout text-ink font-semibold">
                     SOURCE · {fmt(sourceDuration)}{edl.source.duration_estimated ? ' (EST.)' : ''}
                     {!sourceAvailable && ' · EXPIRED — TRIMS LIMITED TO THE ORIGINAL RANGE'}
                 </p>
                 {sourceAvailable && (
-                    <p className="readout hidden xl:block truncate">
+                    <p className="readout text-ink2 font-medium hidden xl:block truncate">
                         DRAG EMPTY SPACE TO MARK IN/OUT · BLOCK TO MOVE · EDGES TO TRIM
                     </p>
                 )}
@@ -1084,9 +1084,9 @@ export default function ClipEditor({ jobId, clipIndex, clipTitle, onClose, onRer
                 )}
             </div>
             <div className="flex justify-between mt-1">
-                <span className="readout">0:00</span>
-                <span className="readout">{fmt(sourceDuration / 2)}</span>
-                <span className="readout">{fmt(sourceDuration)}</span>
+                <span className="readout text-ink font-medium">0:00</span>
+                <span className="readout text-ink font-medium">{fmt(sourceDuration / 2)}</span>
+                <span className="readout text-ink font-medium">{fmt(sourceDuration)}</span>
             </div>
         </div>
     );
@@ -1107,8 +1107,8 @@ export default function ClipEditor({ jobId, clipIndex, clipTitle, onClose, onRer
                 </div>
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                     <div className="text-right hidden sm:block">
-                        <p className="readout">DURATION · {fmt(total)}</p>
-                        <p className="readout mt-1">
+                        <p className="readout text-ink font-semibold">DURATION · {fmt(total)}</p>
+                        <p className="readout text-ink2 font-medium mt-1">
                             {needsSourcePath ? 'PATH · FULL RE-FRAME' : 'PATH · FAST RECUT'}
                             {edl.rerender_minutes > 0 && ` · ≈${Math.max(1, Math.ceil(total / 60))} MIN`}
                         </p>
@@ -1176,14 +1176,14 @@ export default function ClipEditor({ jobId, clipIndex, clipTitle, onClose, onRer
                             row read as six unrelated buttons. */}
                         <div className="shrink-0 rounded-input border border-rule bg-paper2 p-2 flex items-stretch gap-3">
                             <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                                <span className="readout shrink-0 text-muted">1 · MARK</span>
-                                <button onClick={() => markHere('in')} className="btn-quiet text-[11px] py-1 px-2 flex items-center gap-1 shrink-0">
-                                    <ChevronsRight size={12} /> in <span className="text-muted">i</span>
+                                <span className="readout shrink-0 text-ink font-semibold">1 · MARK</span>
+                                <button onClick={() => markHere('in')} className="btn-quiet text-[11px] py-1 px-2 flex items-center gap-1 shrink-0 text-ink font-medium">
+                                    <ChevronsRight size={12} /> in <span className="text-ink2">i</span>
                                 </button>
-                                <button onClick={() => markHere('out')} className="btn-quiet text-[11px] py-1 px-2 flex items-center gap-1 shrink-0">
-                                    <ChevronsLeft size={12} /> out <span className="text-muted">o</span>
+                                <button onClick={() => markHere('out')} className="btn-quiet text-[11px] py-1 px-2 flex items-center gap-1 shrink-0 text-ink font-medium">
+                                    <ChevronsLeft size={12} /> out <span className="text-ink2">o</span>
                                 </button>
-                                <p className={`readout px-1 truncate ${markRange ? 'text-ink' : ''}`}>
+                                <p className={`readout px-1 truncate font-medium ${markRange ? 'text-ink' : 'text-ink2'}`}>
                                     {markIn === null ? '—:——' : fmt(markIn)}
                                     {' → '}{markOut === null ? '—:——' : fmt(markOut)}
                                     {markRange && ` · ${fmt(markRange.end - markRange.start)}`}
@@ -1203,7 +1203,7 @@ export default function ClipEditor({ jobId, clipIndex, clipTitle, onClose, onRer
                             <div className="w-px bg-[color:var(--color-rule-2)] shrink-0" />
 
                             <div className="flex items-center gap-1.5 shrink-0">
-                                <span className="readout text-muted">2 · SEND</span>
+                                <span className="readout text-ink font-semibold">2 · SEND</span>
                                 <button
                                     onClick={() => sendToClip('replace')}
                                     disabled={!markRange}
@@ -1327,9 +1327,9 @@ export default function ClipEditor({ jobId, clipIndex, clipTitle, onClose, onRer
                     {/* clip track */}
                     <div className="shrink-0 select-none">
                         <div className="flex items-center justify-between mb-1.5 gap-3">
-                            <p className="readout">CLIP · {fmt(total)}</p>
+                            <p className="readout text-ink font-semibold">CLIP · {fmt(total)}</p>
                             {dirty && (
-                                <p className="readout truncate">
+                                <p className="readout text-ink2 font-medium truncate">
                                     {missingSeconds > COVERAGE_EPSILON
                                         ? `RED · ${fmt(missingSeconds)} NOT RENDERED YET`
                                         : 'PREVIEWING THE EDIT'}
@@ -1348,7 +1348,7 @@ export default function ClipEditor({ jobId, clipIndex, clipTitle, onClose, onRer
                                     className={`absolute top-1 bottom-1 rounded-[6px] border ${i === selected ? 'border-[color:var(--color-accent)]' : 'border-transparent'} ${outOfRange(seg) ? 'border-[color:var(--color-danger)]' : ''}`}
                                     style={{ left: `${left}%`, width: `${width}%`, background: `color-mix(in oklab, ${SEGMENT_COLORS[i % SEGMENT_COLORS.length]} 28%, transparent)` }}
                                 >
-                                    <span className="absolute inset-0 flex items-center justify-center readout pointer-events-none select-none">
+                                    <span className="absolute inset-0 flex items-center justify-center readout text-ink font-medium pointer-events-none select-none">
                                         #{i + 1} · {fmt(seg.end - seg.start)}
                                     </span>
                                     {/* trim handles */}
@@ -1417,27 +1417,27 @@ export default function ClipEditor({ jobId, clipIndex, clipTitle, onClose, onRer
                                     >
                                         <div className="flex items-center gap-2">
                                             <span className="w-4 h-4 rounded-full shrink-0" style={{ background: SEGMENT_COLORS[i % SEGMENT_COLORS.length] }} />
-                                            <span className="readout">#{i + 1}</span>
+                                            <span className="readout text-ink font-semibold">#{i + 1}</span>
                                             <input
                                                 type="number"
                                                 step="0.1"
                                                 value={seg.start}
                                                 onClick={(e) => e.stopPropagation()}
                                                 onChange={(e) => setSegment(i, { start: parseFloat(e.target.value) || 0 }, { snap: false })}
-                                                className="input-field w-20 py-1 px-1.5 text-xs text-center"
+                                                className="input-field w-20 py-1 px-1.5 text-xs text-center font-medium"
                                                 aria-label={`segment ${i + 1} start`}
                                             />
-                                            <span className="text-muted text-xs">→</span>
+                                            <span className="text-ink2 text-xs font-semibold">→</span>
                                             <input
                                                 type="number"
                                                 step="0.1"
                                                 value={seg.end}
                                                 onClick={(e) => e.stopPropagation()}
                                                 onChange={(e) => setSegment(i, { end: parseFloat(e.target.value) || 0 }, { snap: false })}
-                                                className="input-field w-20 py-1 px-1.5 text-xs text-center"
+                                                className="input-field w-20 py-1 px-1.5 text-xs text-center font-medium"
                                                 aria-label={`segment ${i + 1} end`}
                                             />
-                                            <span className="readout ml-auto">{fmt(seg.end - seg.start)}</span>
+                                            <span className="readout text-ink font-semibold ml-auto">{fmt(seg.end - seg.start)}</span>
                                         </div>
                                         <div className="flex items-center gap-1 mt-2">
                                             {sourceOpen && (
@@ -1513,14 +1513,14 @@ export default function ClipEditor({ jobId, clipIndex, clipTitle, onClose, onRer
                                 <span className="text-xs lowercase text-ink2">snap cuts to words</span>
                                 <span className="relative inline-flex items-center">
                                     <input type="checkbox" checked={snapToWords} onChange={(e) => setSnapToWords(e.target.checked)} className="sr-only peer" />
-                                    <span className="w-8 h-4 rounded-full bg-paper3 peer-checked:bg-brass transition-colors after:content-[''] after:absolute after:left-0.5 after:top-0.5 after:w-3 after:h-3 after:rounded-full after:bg-ink after:transition-transform peer-checked:after:translate-x-4" />
+                                    <span className="w-8 h-4 rounded-full bg-paper3 border border-rule peer-checked:bg-brass transition-colors after:content-[''] after:absolute after:left-0.5 after:top-0.5 after:w-3 after:h-3 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:after:translate-x-4" />
                                 </span>
                             </label>
                             <label className="flex items-center justify-between cursor-pointer">
                                 <span className="text-xs lowercase text-ink2">re-apply captions after recut</span>
                                 <span className="relative inline-flex items-center">
                                     <input type="checkbox" checked={reapplyCaptions} onChange={(e) => setReapplyCaptions(e.target.checked)} className="sr-only peer" />
-                                    <span className="w-8 h-4 rounded-full bg-paper3 peer-checked:bg-brass transition-colors after:content-[''] after:absolute after:left-0.5 after:top-0.5 after:w-3 after:h-3 after:rounded-full after:bg-ink after:transition-transform peer-checked:after:translate-x-4" />
+                                    <span className="w-8 h-4 rounded-full bg-paper3 border border-rule peer-checked:bg-brass transition-colors after:content-[''] after:absolute after:left-0.5 after:top-0.5 after:w-3 after:h-3 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:after:translate-x-4" />
                                 </span>
                             </label>
                         </div>
@@ -1528,8 +1528,8 @@ export default function ClipEditor({ jobId, clipIndex, clipTitle, onClose, onRer
                         {/* keyboard legend — moved off the clip track, which no longer
                             has the width for it */}
                         <div>
-                            <p className="eyebrow mb-2">Shortcuts</p>
-                            <p className="readout leading-relaxed">
+                            <p className="eyebrow mb-2 text-ink font-semibold">Shortcuts</p>
+                            <p className="readout text-ink2 font-medium leading-relaxed">
                                 SPACE PLAY · S SPLIT · ⌫ DELETE · ⌘Z UNDO
                                 {sourceOpen && ' · I MARK IN · O MARK OUT · , INSERT · . REPLACE'}
                             </p>
@@ -1599,11 +1599,11 @@ const TranscriptChunk = React.memo(function TranscriptChunk({
                         data-active={isActive ? '1' : undefined}
                         onClick={() => onPick(w)}
                         title={`${fmt(w.s)} – ${fmt(w.e)}`}
-                        className={`px-1 py-0.5 rounded text-xs transition-colors ${
-                            isSel ? 'bg-brass text-brassink'
-                                : isActive ? 'bg-brass/30 text-ink'
-                                    : inside ? 'text-ink hover:bg-paper3'
-                                        : 'text-muted hover:bg-paper3'}`}
+                        className={`px-1 py-0.5 rounded text-xs transition-colors font-medium ${
+                            isSel ? 'bg-brass text-brassink font-bold'
+                                : isActive ? 'bg-brass/30 text-ink font-bold'
+                                    : inside ? 'text-ink bg-paper3/60 hover:bg-paper3'
+                                        : 'text-ink2 hover:text-ink hover:bg-paper3'}`}
                     >
                         {w.w}
                     </button>

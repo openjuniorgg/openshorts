@@ -167,26 +167,26 @@ export default function HookModal({ isOpen, onClose, onGenerate, onRemove, isPro
                                         key={s.value}
                                         onClick={() => setStyle(s.value)}
                                         className={`px-1 py-2 rounded-input border text-xs transition-colors
-                                            ${style === s.value ? 'border-[color:var(--color-accent)]' : 'border-rule2 hover:border-[color:var(--color-accent)]'}`}
+                                            ${style === s.value ? 'border-brass bg-paper3 ring-1 ring-brass/30' : 'border-rule2 bg-paper hover:border-brass/60'}`}
                                         title={s.label}
                                     >
                                         {s.value === 'pill' ? (
                                             <span className="flex flex-col items-center gap-0.5 py-0.5" style={FONT_CSS[font || styleFont(s.value)]}>
-                                                <span className="rounded-md px-1.5 text-[13px] leading-5 bg-white text-black">Aa Bb</span>
-                                                <span className="rounded-md px-1.5 text-[13px] leading-5 bg-white text-black">Cc</span>
+                                                <span className="rounded-md px-1.5 text-[13px] leading-5 bg-white text-black border border-rule shadow-sm">Aa Bb</span>
+                                                <span className="rounded-md px-1.5 text-[13px] leading-5 bg-white text-black border border-rule shadow-sm">Cc</span>
                                             </span>
                                         ) : (
                                             <span
-                                                className="block rounded-md px-1 py-1.5 text-[15px] leading-5"
+                                                className={`block rounded-md px-1 py-1.5 text-[15px] leading-5 border border-rule/60 shadow-sm ${s.outline ? 'bg-slate-900/80' : ''}`}
                                                 style={{
                                                     ...FONT_CSS[font || styleFont(s.value)],
-                                                    backgroundColor: s.box,
+                                                    backgroundColor: s.outline ? undefined : s.box,
                                                     color: s.text,
                                                     textShadow: s.outline ? '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000' : 'none',
                                                 }}
                                             >Aa</span>
                                         )}
-                                        <span className="block mt-1 text-muted">{s.label}</span>
+                                        <span className={`block mt-1 font-medium ${style === s.value ? 'text-ink font-semibold' : 'text-ink2'}`}>{s.label}</span>
                                     </button>
                                 ))}
                             </div>
@@ -201,7 +201,7 @@ export default function HookModal({ isOpen, onClose, onGenerate, onRemove, isPro
                                         key={f.value}
                                         onClick={() => setFont(f.value)}
                                         className={`px-1 py-2 rounded-input border text-[15px] text-ink transition-colors
-                                            ${effectiveFont === f.value ? 'border-[color:var(--color-accent)]' : 'border-rule2 hover:border-[color:var(--color-accent)]'}`}
+                                            ${effectiveFont === f.value ? 'border-brass bg-paper3 ring-1 ring-brass/30' : 'border-rule2 bg-paper hover:border-brass/60'}`}
                                         style={FONT_CSS[f.value]}
                                     >
                                         {f.label}
@@ -220,13 +220,13 @@ export default function HookModal({ isOpen, onClose, onGenerate, onRemove, isPro
                                 size="sm"
                             />
                             {position === 'auto' && (
-                                <p className="text-[11px] text-muted mt-1.5 leading-relaxed">
+                                <p className="text-[11px] text-ink2 mt-1.5 leading-relaxed">
                                     Placed where it covers no face and no captions.
                                     The preview shows it at the top.
                                 </p>
                             )}
                             {position === 'bottom' && hasCaptions && (
-                                <p className="text-[11px] text-warn mt-1.5 leading-relaxed">
+                                <p className="text-[11px] text-warn mt-1.5 leading-relaxed font-medium">
                                     This clip has captions near the bottom — the hook may
                                     overlap them (and TikTok's UI). Top is the safe zone.
                                 </p>
@@ -279,7 +279,7 @@ export default function HookModal({ isOpen, onClose, onGenerate, onRemove, isPro
                         </div>
 
                         {burnedHook && (
-                            <div className="p-3 border border-rule rounded-input text-xs text-muted space-y-2">
+                            <div className="p-3 border border-rule bg-paper2 rounded-input text-xs text-ink2 space-y-2">
                                 <p>
                                     This clip has a hook burned in ("{burnedHook}").
                                     Generating replaces it with the new one.
@@ -288,7 +288,7 @@ export default function HookModal({ isOpen, onClose, onGenerate, onRemove, isPro
                                     <button
                                         onClick={onRemove}
                                         disabled={isProcessing}
-                                        className="text-warn underline underline-offset-2 hover:opacity-80 transition-opacity"
+                                        className="text-warn underline underline-offset-2 hover:opacity-80 transition-opacity font-medium"
                                     >
                                         remove hook from clip
                                     </button>
@@ -296,7 +296,7 @@ export default function HookModal({ isOpen, onClose, onGenerate, onRemove, isPro
                             </div>
                         )}
 
-                        <div className="p-3 border border-rule rounded-input text-xs text-muted">
+                        <div className="p-3 border border-rule bg-paper2 rounded-input text-xs text-ink2">
                             Tip: keep it short and punchy. Using "POV:" or specific questions works best for retention.
                         </div>
                     </div>

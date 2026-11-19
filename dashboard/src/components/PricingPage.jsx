@@ -134,7 +134,7 @@ const FAQItem = ({ question, answer, isOpen, onClick }) => (
     </button>
     {isOpen && (
       <div className="px-1 pb-6">
-        <p className="text-muted text-sm leading-relaxed">{answer}</p>
+        <p className="text-ink2 text-sm leading-relaxed">{answer}</p>
       </div>
     )}
   </div>
@@ -194,7 +194,7 @@ export default function PricingPage({ onRequireLogin }) {
               className="w-44 sm:w-48 justify-self-center md:justify-self-auto"
             />
           </div>
-          <p className="text-center text-xs text-muted lowercase mt-4">
+          <p className="text-center text-xs text-ink2 lowercase mt-4">
             real output from the clip generator — same footage, reframed by AI face tracking.
           </p>
         </div>
@@ -215,7 +215,7 @@ export default function PricingPage({ onRequireLogin }) {
             <h2 className="font-display text-3xl md:text-4xl lowercase text-ink tracking-tight">
               what you are actually paying for
             </h2>
-            <p className="text-muted text-sm mt-3 max-w-2xl leading-relaxed">
+            <p className="text-ink2 text-sm mt-3 max-w-2xl leading-relaxed">
               The software is the same and it is open source either way. What a plan buys you is the
               hardware, the API keys and the setup, so here is exactly what that means.
             </p>
@@ -230,8 +230,8 @@ export default function PricingPage({ onRequireLogin }) {
           <div className="divide-y divide-rule border-b border-rule">
             {HOSTED_VS_SELF.map(({ icon: Icon, label, hosted, self }) => (
               <div key={label} className="py-4 grid gap-2 md:grid-cols-[9rem_1fr_1fr] md:gap-x-6 md:items-start">
-                <div className="flex items-center gap-2 text-ink2">
-                  <Icon size={15} className="text-muted shrink-0" />
+                <div className="flex items-center gap-2 text-ink">
+                  <Icon size={15} className="text-brass shrink-0" />
                   <span className="text-sm font-medium">{label}</span>
                 </div>
                 <div>
@@ -243,21 +243,21 @@ export default function PricingPage({ onRequireLogin }) {
                 </div>
                 <div>
                   <span className="eyebrow block mb-1 mt-2 md:hidden">Self-hosted</span>
-                  <p className="text-sm text-muted leading-relaxed">{self}</p>
+                  <p className="text-sm text-ink2 leading-relaxed">{self}</p>
                 </div>
               </div>
             ))}
           </div>
 
           <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-            <p className="text-xs text-muted leading-relaxed max-w-xl">
+            <p className="text-xs text-ink2 leading-relaxed max-w-xl">
               Self-hosting is genuinely free and always will be. It costs you a machine, your own API
               keys and the time to keep it running.
             </p>
             <a
               href="https://github.com/mutonby/openshorts"
               target="_blank" rel="noopener noreferrer"
-              className="shrink-0 text-sm text-muted hover:text-ink transition-colors inline-flex items-center gap-1.5"
+              className="shrink-0 text-sm text-ink2 hover:text-ink font-medium transition-colors inline-flex items-center gap-1.5"
             >
               <Github size={15} /> View the source
             </a>
@@ -272,9 +272,9 @@ export default function PricingPage({ onRequireLogin }) {
             <div key={card.eyebrow} className="card p-6">
               <div className="flex items-center gap-2 mb-3">
                 <Check size={16} className="text-ok shrink-0" />
-                <span className="eyebrow">{card.eyebrow}</span>
+                <span className="eyebrow text-ink">{card.eyebrow}</span>
               </div>
-              <p className="text-sm text-muted leading-relaxed">{card.body}</p>
+              <p className="text-sm text-ink2 leading-relaxed">{card.body}</p>
             </div>
           ))}
         </div>

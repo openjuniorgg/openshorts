@@ -45,7 +45,7 @@ export default function SocialAnalyticsCard() {
         <h3 className="font-display lowercase text-lg text-ink flex items-center gap-2">
           <BarChart3 size={16} className="text-brass" /> Your posts
         </h3>
-        <span className="text-muted text-xs lowercase">
+        <span className="text-ink2 text-xs lowercase font-medium">
           posted in the last 30 days
           {data.refreshing ? ' · updating, reload in a minute'
             : data.updated_at ? ` · updated ${fmtDay(data.updated_at)}` : ''}
@@ -53,14 +53,14 @@ export default function SocialAnalyticsCard() {
       </div>
 
       {!data.posts_count ? (
-        <p className="text-muted text-sm lowercase">
+        <p className="text-ink2 text-sm lowercase">
           Nothing published yet. Post a clip from your results and its views show up here.
         </p>
       ) : (
         <>
           <div className="flex items-end gap-3 mb-3">
-            <span className="readout text-2xl text-ink">{fmtNum(total)}</span>
-            <span className="text-muted text-sm lowercase mb-0.5">
+            <span className="readout font-mono font-bold text-2xl text-ink">{fmtNum(total)}</span>
+            <span className="text-ink2 text-sm lowercase mb-0.5 font-medium">
               views on {data.posts_count} post{data.posts_count === 1 ? '' : 's'}
             </span>
           </div>
@@ -68,8 +68,8 @@ export default function SocialAnalyticsCard() {
           {perPlatform.length > 0 && (
             <div className="flex flex-wrap gap-x-4 gap-y-1 mb-4 text-sm">
               {perPlatform.map(([platform, v]) => (
-                <span key={platform} className="text-ink2 lowercase">
-                  {platform} <span className="text-brass">{fmtNum(Number(v))}</span>
+                <span key={platform} className="text-ink2 lowercase font-medium">
+                  {platform} <span className="text-brass font-bold">{fmtNum(Number(v))}</span>
                 </span>
               ))}
             </div>
@@ -84,12 +84,12 @@ export default function SocialAnalyticsCard() {
                     {p.platform} · {fmtDay(p.published_at)}
                     {/^https?:\/\//.test(p.post_url || '') && (
                       <a href={p.post_url} target="_blank" rel="noreferrer"
-                         className="inline-flex align-middle ml-1.5 text-muted hover:text-ink">
+                         className="inline-flex align-middle ml-1.5 text-ink2 hover:text-ink">
                         <ExternalLink size={12} />
                       </a>
                     )}
                   </span>
-                  <span className="text-ink shrink-0">{fmtNum(p.views)} views</span>
+                  <span className="text-ink font-semibold shrink-0">{fmtNum(p.views)} views</span>
                 </div>
               ))}
             </div>

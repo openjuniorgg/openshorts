@@ -69,8 +69,8 @@ export default function SourceCost({ mode, url, fileSeconds, range, onRangeChang
     if (!isManaged) return null;
     if (loading && !estimate) {
         return (
-            <p className="mt-3 flex items-center gap-2 text-xs text-muted">
-                <Loader2 size={12} className="animate-spin" /> checking the video length…
+            <p className="mt-3 flex items-center gap-2 text-xs text-ink2 font-medium">
+                <Loader2 size={12} className="animate-spin text-brass" /> checking the video length…
             </p>
         );
     }
@@ -89,24 +89,24 @@ export default function SourceCost({ mode, url, fileSeconds, range, onRangeChang
     let summary;
     if (range) {
         summary = (
-            <span className={short ? 'text-warn' : 'text-ink2'}>
+            <span className={short ? 'text-warn font-semibold' : 'text-ink font-medium'}>
                 {clock(start)}–{clock(end)} of {clock(total)} · uses {rangeCost} of your {remaining} min
                 {short && ' (not enough left)'}
             </span>
         );
     } else if (estimate.outcome === 'whole') {
-        summary = <span className="text-ink2">{clock(total)} video · uses {estimate.cost_minutes} of your {remaining} min</span>;
+        summary = <span className="text-ink font-medium">{clock(total)} video · uses {estimate.cost_minutes} of your {remaining} min</span>;
     } else if (estimate.outcome === 'first_video_free') {
-        summary = <span className="text-ink2">{clock(total)} video · your first video is clipped whole, on us</span>;
+        summary = <span className="text-ink font-medium">{clock(total)} video · your first video is clipped whole, on us</span>;
     } else if (estimate.outcome === 'first_part') {
         summary = (
-            <span className="text-ink2">
+            <span className="text-ink font-medium">
                 {clock(total)} video · longer than your {remaining} min left, so we clip the first {estimate.processed_minutes} min
             </span>
         );
     } else {
         summary = (
-            <span className="text-warn">
+            <span className="text-warn font-semibold">
                 {clock(total)} video · needs {estimate.cost_minutes} min, you have {remaining}
             </span>
         );
@@ -127,14 +127,14 @@ export default function SourceCost({ mode, url, fileSeconds, range, onRangeChang
                             setPicking(true);
                             onRangeChange({ start: 0, end: total });
                         }}
-                        className="flex items-center gap-1 text-brass hover:underline lowercase"
+                        className="flex items-center gap-1 text-brass hover:underline lowercase font-medium"
                     >
                         <Scissors size={12} />
                         {picking || range ? 'clip the whole video' : 'clip only part of it'}
                     </button>
                 )}
             </div>
-            <p className="text-muted mt-0.5">Billed per minute of video you import. Trims, reframes, hooks and captions on the clips are free.</p>
+            <p className="text-ink2 mt-0.5">Billed per minute of video you import. Trims, reframes, hooks and captions on the clips are free.</p>
             {(picking || range) && range && (
                 <div className="mt-3 space-y-2 animate-fade">
                     <label className="block">

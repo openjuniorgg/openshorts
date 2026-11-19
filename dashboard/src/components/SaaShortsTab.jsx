@@ -437,8 +437,8 @@ export default function SaaShortsTab({ geminiApiKey, elevenLabsKey, falKey, uplo
                       <span className={`text-sm font-medium lowercase ${videoMode === 'lowcost' ? 'text-ink' : 'text-ink2'}`}>Low Cost</span>
                       <span className="badge-ok">recommended</span>
                     </div>
-                    <p className="readout mb-1.5">~$0.80 / VIDEO</p>
-                    <p className="text-xs text-muted leading-relaxed">Hailuo 2.3 img2video + VEED Lipsync. Good movement + lip-sync.</p>
+                    <p className="readout mb-1.5 font-mono text-ink2">~$0.80 / VIDEO</p>
+                    <p className="text-xs text-ink2 leading-relaxed">Hailuo 2.3 img2video + VEED Lipsync. Good movement + lip-sync.</p>
                   </button>
                   <button
                     onClick={() => setVideoMode('premium')}
@@ -450,17 +450,17 @@ export default function SaaShortsTab({ geminiApiKey, elevenLabsKey, falKey, uplo
                       <span className={`text-sm font-medium lowercase ${videoMode === 'premium' ? 'text-ink' : 'text-ink2'}`}>Premium</span>
                       <span className="badge-brass">best quality</span>
                     </div>
-                    <p className="readout mb-1.5">~$2.00 / VIDEO</p>
-                    <p className="text-xs text-muted leading-relaxed">Kling Avatar v2 Standard. Full integrated movement.</p>
+                    <p className="readout mb-1.5 font-mono text-ink2">~$2.00 / VIDEO</p>
+                    <p className="text-xs text-ink2 leading-relaxed">Kling Avatar v2 Standard. Full integrated movement.</p>
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="eyebrow block mb-2">Website URL <span className="opacity-60">(optional)</span></label>
+                <label className="eyebrow block mb-2">Website URL <span className="text-ink2/70">(optional)</span></label>
                 <div className="flex gap-3">
                   <div className="relative flex-1">
-                    <Globe size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                    <Globe size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink2" />
                     <input
                       type="url"
                       value={url}
@@ -471,7 +471,7 @@ export default function SaaShortsTab({ geminiApiKey, elevenLabsKey, falKey, uplo
                     />
                   </div>
                 </div>
-                <p className="text-xs lowercase text-muted mt-1.5">If provided, we&apos;ll scrape and research your site automatically</p>
+                <p className="text-xs lowercase text-ink2 mt-1.5">If provided, we&apos;ll scrape and research your site automatically</p>
               </div>
 
               <div>
@@ -560,16 +560,16 @@ export default function SaaShortsTab({ geminiApiKey, elevenLabsKey, falKey, uplo
             {/* Info cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="card p-4">
-                <h3 className="eyebrow">Deep Research</h3>
-                <p className="text-xs text-muted mt-2">AI analyzes your product via URL scraping + web research, or generates directly from your description.</p>
+                <h3 className="eyebrow text-ink">Deep Research</h3>
+                <p className="text-xs text-ink2 leading-relaxed mt-2">AI analyzes your product via URL scraping + web research, or generates directly from your description.</p>
               </div>
               <div className="card p-4">
-                <h3 className="eyebrow">Pain Point Scripts</h3>
-                <p className="text-xs text-muted mt-2">Generates hook-problem-solution scripts targeting your audience&apos;s real pain points.</p>
+                <h3 className="eyebrow text-ink">Pain Point Scripts</h3>
+                <p className="text-xs text-ink2 leading-relaxed mt-2">Generates hook-problem-solution scripts targeting your audience&apos;s real pain points.</p>
               </div>
               <div className="card p-4">
-                <h3 className="eyebrow">AI Actor Videos</h3>
-                <p className="text-xs text-muted mt-2">Realistic AI-generated actors with lip-sync, b-roll, and viral subtitles. From ~$0.50/video.</p>
+                <h3 className="eyebrow text-ink">AI Actor Videos</h3>
+                <p className="text-xs text-ink2 leading-relaxed mt-2">Realistic AI-generated actors with lip-sync, b-roll, and viral subtitles. From ~$0.50/video.</p>
               </div>
             </div>
           </div>
@@ -993,8 +993,8 @@ export default function SaaShortsTab({ geminiApiKey, elevenLabsKey, falKey, uplo
                           </div>
                         )}
                         {!uploadedActorPreview.serverUrl && (
-                          <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-                            <Loader2 size={12} className="animate-spin text-ink" />
+                          <div className="absolute inset-0 bg-paper/80 flex items-center justify-center">
+                            <Loader2 size={12} className="animate-spin text-brass" />
                           </div>
                         )}
                       </button>
@@ -1063,7 +1063,7 @@ export default function SaaShortsTab({ geminiApiKey, elevenLabsKey, falKey, uplo
                               <Check size={12} className="text-brassink" />
                             </div>
                           )}
-                          <span className="absolute bottom-1.5 left-1.5 readout bg-black/70 text-ink2 px-1.5 py-0.5 rounded-full">
+                          <span className="absolute bottom-1.5 left-1.5 readout bg-paper/90 text-ink border border-rule px-1.5 py-0.5 rounded-full">
                             New {i+1}
                           </span>
                         </button>

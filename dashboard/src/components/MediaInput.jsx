@@ -49,10 +49,10 @@ export default function MediaInput({ onProcess, isProcessing }) {
     const [targetClips, setTargetClips] = useState('');
     const [clipMinSeconds, setClipMinSeconds] = useState('');
     const [clipMaxSeconds, setClipMaxSeconds] = useState('');
-    // Auto-hook: burn the AI hook text into every clip. On by default; the
-    // choice persists so turning it off sticks across sessions.
+    // Auto-hook: burn the AI hook text into every clip. Off by default; the
+    // choice persists so user preference sticks across sessions.
     const [autoHook, setAutoHook] = useState(() => {
-        try { return localStorage.getItem('os_auto_hook') !== '0'; } catch { return true; }
+        try { return localStorage.getItem('os_auto_hook') === '1'; } catch { return false; }
     });
     const [autoHookStyle, setAutoHookStyle] = useState(() => {
         // v2 key: the default became 'pill'; an old saved 'classic' was just the old default.
@@ -129,6 +129,7 @@ export default function MediaInput({ onProcess, isProcessing }) {
             layout,
             sourceStart: range ? Math.round(range.start) : null,
             sourceEnd: range ? Math.round(range.end) : null,
+            captions: '0',
         };
         try {
             localStorage.setItem('os_auto_hook', autoHook ? '1' : '0');
@@ -136,9 +137,9 @@ export default function MediaInput({ onProcess, isProcessing }) {
             localStorage.setItem('os_layout', layout);
         } catch { /* ignore */ }
         if (mode === 'url' && url) {
-            onProcess({ type: 'url', payload: url, acknowledged: true, outputFormat, ...advanced });
+            onProcess({ type: 'url', payload: url, acknowledged: true, outputFormat, captions: '0', ...advanced });
         } else if (mode === 'file' && file && !fileTooShort) {
-            onProcess({ type: 'file', payload: file, acknowledged: true, outputFormat, ...advanced });
+            onProcess({ type: 'file', payload: file, acknowledged: true, outputFormat, captions: '0', ...advanced });
         }
     };
 
@@ -203,7 +204,7 @@ export default function MediaInput({ onProcess, isProcessing }) {
                                         <p className="eyebrow mb-2">Paste a link from</p>
                                         <div className="flex flex-wrap gap-1.5">
                                             {SUPPORTED_PLATFORMS.map((p) => (
-                                                <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-paper3 text-ink2">
+                                                <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-paper3 border border-rule text-ink2">
                                                     {p}
                                                 </span>
                                             ))}
@@ -251,9 +252,9 @@ export default function MediaInput({ onProcess, isProcessing }) {
                                     onChange={(e) => setFile(e.target.files?.[0] || null)}
                                     className="hidden"
                                 />
-                                <Upload className="mx-auto mb-3 text-muted" size={18} />
-                                <p className="text-ink2 lowercase">Click to upload or drag and drop</p>
-                                <p className="readout mt-2">MP4, MOV up to 500MB · at least {MIN_SOURCE_SECONDS}s long</p>
+                                <Upload className="mx-auto mb-3 text-ink2" size={18} />
+                                <p className="text-ink font-medium lowercase">Click to upload or drag and drop</p>
+                                <p className="readout text-ink2 font-medium mt-2">MP4, MOV up to 500MB · at least {MIN_SOURCE_SECONDS}s long</p>
                             </label>
                         )}
                     </div>
@@ -283,7 +284,7 @@ export default function MediaInput({ onProcess, isProcessing }) {
                                     type="button"
                                     onClick={() => setOutputFormat(f.value)}
                                     className={`py-3 px-2 rounded-input border flex flex-col items-center gap-2 transition-colors
-                                        ${active ? 'border-[color:var(--color-accent)] text-ink' : 'border-rule2 text-muted hover:border-[color:var(--color-accent)]'}`}
+                                        ${active ? 'border-[color:var(--color-accent)] text-ink font-semibold' : 'border-rule2 text-ink2 hover:border-[color:var(--color-accent)]'}`}
                                 >
                                     {/* Aspect-ratio glyph */}
                                     <span
@@ -296,7 +297,7 @@ export default function MediaInput({ onProcess, isProcessing }) {
                                         }}
                                     />
                                     <span className="block font-mono text-sm leading-none">{f.label}</span>
-                                    <span className="block text-[11px] sm:text-[10px] leading-tight text-center text-muted">{f.hint}</span>
+                                    <span className="block text-[11px] sm:text-[10px] leading-tight text-center text-ink2 font-medium">{f.hint}</span>
                                 </button>
                             );
                         })}
@@ -308,7 +309,7 @@ export default function MediaInput({ onProcess, isProcessing }) {
                     <button
                         type="button"
                         onClick={() => setShowAdvanced((v) => !v)}
-                        className="flex items-center gap-1.5 text-xs text-muted hover:text-ink2 lowercase transition-colors"
+                        className="flex items-center gap-1.5 text-xs text-ink2 font-medium hover:text-ink lowercase transition-colors"
                     >
                         <ChevronDown size={14} className={`transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
                         advanced options
@@ -321,7 +322,7 @@ export default function MediaInput({ onProcess, isProcessing }) {
                            ~100px each, which crushes both label and value. */
                         <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-2 animate-fade">
                             <div>
-                                <p className="eyebrow mb-1.5">clips to aim for</p>
+                                <p className="eyebrow mb-1.5 text-ink font-semibold">clips to aim for</p>
                                 <input
                                     type="number" min="1" max="15" step="1"
                                     value={targetClips}
@@ -331,7 +332,7 @@ export default function MediaInput({ onProcess, isProcessing }) {
                                 />
                             </div>
                             <div>
-                                <p className="eyebrow mb-1.5">min length (s)</p>
+                                <p className="eyebrow mb-1.5 text-ink font-semibold">min length (s)</p>
                                 <input
                                     type="number" min="5" max="175" step="1"
                                     value={clipMinSeconds}
@@ -341,7 +342,7 @@ export default function MediaInput({ onProcess, isProcessing }) {
                                 />
                             </div>
                             <div>
-                                <p className="eyebrow mb-1.5">max length (s)</p>
+                                <p className="eyebrow mb-1.5 text-ink font-semibold">max length (s)</p>
                                 <input
                                     type="number" min="10" max="180" step="1"
                                     value={clipMaxSeconds}
@@ -350,12 +351,12 @@ export default function MediaInput({ onProcess, isProcessing }) {
                                     className="input-field"
                                 />
                             </div>
-                            <p className="col-span-1 sm:col-span-3 text-[11px] leading-relaxed text-muted">
+                            <p className="col-span-1 sm:col-span-3 text-[11px] leading-relaxed text-ink2 font-medium">
                                 Targets, not guarantees: the AI returns fewer clips when the
                                 material doesn't hold them. Leave blank to let it decide.
                             </p>
                             <div className="col-span-1 sm:col-span-3 flex flex-wrap items-center justify-between gap-3 pt-3 sm:pt-1 border-t border-rule">
-                                <span className="text-xs text-ink2">vertical layout</span>
+                                <span className="text-xs text-ink font-medium">vertical layout</span>
                                 <select
                                     value={layout}
                                     onChange={(e) => setLayout(e.target.value)}
@@ -369,7 +370,7 @@ export default function MediaInput({ onProcess, isProcessing }) {
                                 </select>
                             </div>
                             <div className="col-span-1 sm:col-span-3 flex flex-wrap items-center justify-between gap-3 pt-3 sm:pt-1 border-t border-rule">
-                                <label className="flex items-center gap-2 text-xs text-ink2 cursor-pointer select-none">
+                                <label className="flex items-center gap-2 text-xs text-ink font-medium cursor-pointer select-none">
                                     <input
                                         type="checkbox"
                                         checked={autoHook}
@@ -404,7 +405,7 @@ export default function MediaInput({ onProcess, isProcessing }) {
                     )}
                 </div>
 
-                <label className="flex items-start gap-2.5 mt-5 text-left text-[13px] sm:text-xs leading-relaxed text-muted cursor-pointer select-none">
+                <label className="flex items-start gap-2.5 mt-5 text-left text-[13px] sm:text-xs leading-relaxed text-ink2 cursor-pointer select-none">
                     <input
                         type="checkbox"
                         checked={acknowledged}
@@ -412,7 +413,7 @@ export default function MediaInput({ onProcess, isProcessing }) {
                         className="mt-0.5 w-4 h-4 shrink-0 accent-[var(--color-accent)] cursor-pointer"
                     />
                     <span>
-                        I confirm I own this content or have the rights to process it. I am responsible for any content I submit. See our <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-ink2 underline underline-offset-2 hover:text-brass transition-colors" onClick={(e) => e.stopPropagation()}>Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-ink2 underline underline-offset-2 hover:text-brass transition-colors" onClick={(e) => e.stopPropagation()}>Privacy Policy</a>.
+                        I confirm I own this content or have the rights to process it. I am responsible for any content I submit. See our <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-ink underline underline-offset-2 hover:text-brass transition-colors font-medium" onClick={(e) => e.stopPropagation()}>Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-ink underline underline-offset-2 hover:text-brass transition-colors font-medium" onClick={(e) => e.stopPropagation()}>Privacy Policy</a>.
                     </span>
                 </label>
 

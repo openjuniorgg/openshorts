@@ -70,13 +70,13 @@ export default function UGCGallery() {
       {loading ? (
         <div className="flex items-center justify-center h-64">
           <Loader2 size={24} className="animate-spin text-brass" />
-          <span className="ml-2 text-muted lowercase">Loading gallery...</span>
+          <span className="ml-2 text-ink2 lowercase">Loading gallery...</span>
         </div>
       ) : tab === 'videos' ? (
         videos.length === 0 ? (
           <div className="text-center py-16">
-            <Film size={40} className="mx-auto text-muted opacity-40 mb-3" />
-            <p className="text-sm text-muted lowercase">No videos yet. Generate one from AI Shorts.</p>
+            <Film size={40} className="mx-auto text-ink2/30 mb-3" />
+            <p className="text-sm text-ink2 lowercase">No videos yet. Generate one from AI Shorts.</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
@@ -93,8 +93,8 @@ export default function UGCGallery() {
         )
       ) : avatars.length === 0 ? (
         <div className="text-center py-16">
-          <User size={40} className="mx-auto text-muted opacity-40 mb-3" />
-          <p className="text-sm text-muted lowercase">No avatars yet. Generate actors from AI Shorts.</p>
+          <User size={40} className="mx-auto text-ink2/30 mb-3" />
+          <p className="text-sm text-ink2 lowercase">No avatars yet. Generate actors from AI Shorts.</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -125,7 +125,7 @@ export default function UGCGallery() {
             {selected.cost_estimate?.total != null ? ` · $${selected.cost_estimate.total.toFixed(2)}` : ''}
           </p>
           {selected.caption && (
-            <p className="text-sm text-muted mt-2 leading-relaxed">{selected.caption}</p>
+            <p className="text-sm text-ink2 mt-2 leading-relaxed">{selected.caption}</p>
           )}
           <a
             href={selected.video_url}
@@ -149,23 +149,23 @@ function AvatarCard({ avatar, copied, onCopy }) {
       <div className="p-2 space-y-1">
         {avatar.description ? (
           <div className="relative pr-4">
-            <p className="text-micro text-muted line-clamp-2">{avatar.description}</p>
+            <p className="text-micro text-ink2 line-clamp-2">{avatar.description}</p>
             <button
               type="button"
               onClick={() => onCopy(avatar.description, `avatar-${avatar.key}`)}
-              className="absolute top-0 right-0 p-0.5 text-muted hover:text-brass transition-colors"
+              className="absolute top-0 right-0 p-0.5 text-ink2 hover:text-brass transition-colors"
               title="Copy prompt"
             >
               {copied === `avatar-${avatar.key}` ? <Check size={10} className="text-ok" /> : <Copy size={10} />}
             </button>
           </div>
         ) : (
-          <p className="text-micro text-muted opacity-60 lowercase">No description</p>
+          <p className="text-micro text-ink2/60 lowercase">No description</p>
         )}
         <a
           href={avatar.url}
           download
-          className="block text-center text-micro lowercase bg-paper3 hover:brightness-110 text-muted hover:text-ink2 py-1 rounded-full transition-all"
+          className="block text-center text-micro font-medium lowercase bg-paper3 border border-rule hover:border-rule2 text-ink2 hover:text-ink py-1 rounded-full transition-all"
         >
           <Download size={10} className="inline mr-0.5" />Download
         </a>
@@ -197,11 +197,13 @@ function VideoCard({ video, copied, onCopy, onOpen }) {
         ) : (
           <div className="w-full h-full bg-paper3" />
         )}
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
-          <Play size={20} className="text-white/80" />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/20 transition-colors">
+          <div className="w-9 h-9 rounded-full bg-paper/90 border border-rule shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
+            <Play size={16} className="text-ink ml-0.5 fill-ink" />
+          </div>
         </div>
         <div className="absolute top-1.5 right-1.5">
-          <span className={`${mode === 'lowcost' ? 'badge-ok' : 'badge-brass'} bg-black/70`}>
+          <span className={`${mode === 'lowcost' ? 'badge-ok' : 'badge-brass'} bg-paper/90 backdrop-blur-sm border border-rule shadow-sm`}>
             {mode === 'lowcost' ? 'LOW COST' : 'PREMIUM'}
           </span>
         </div>
@@ -214,11 +216,11 @@ function VideoCard({ video, copied, onCopy, onOpen }) {
         </p>
         {caption && (
           <div className="relative pr-4">
-            <p className="text-micro text-muted line-clamp-2">{caption}</p>
+            <p className="text-micro text-ink2 line-clamp-2">{caption}</p>
             <button
               type="button"
               onClick={() => onCopy(`${caption}\n${hashtags}`, `caption-${video.video_id}`)}
-              className="absolute top-0 right-0 p-0.5 text-muted hover:text-brass transition-colors"
+              className="absolute top-0 right-0 p-0.5 text-ink2 hover:text-brass transition-colors"
               title="Copy caption"
             >
               {copied === `caption-${video.video_id}` ? <Check size={10} className="text-ok" /> : <Copy size={10} />}
@@ -228,7 +230,7 @@ function VideoCard({ video, copied, onCopy, onOpen }) {
         <a
           href={video.video_url}
           download
-          className="block text-center text-micro lowercase bg-paper3 hover:brightness-110 text-muted hover:text-ink2 py-1 rounded-full transition-all"
+          className="block text-center text-micro font-medium lowercase bg-paper3 border border-rule hover:border-rule2 text-ink2 hover:text-ink py-1 rounded-full transition-all"
         >
           <Download size={10} className="inline mr-0.5" />Download
         </a>

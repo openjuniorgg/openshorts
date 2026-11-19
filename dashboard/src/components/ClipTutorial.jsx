@@ -147,7 +147,7 @@ export default function ClipTutorial({ phase, jobStatus, errorText, onStart, onS
         role="status"
       >
         <p className="eyebrow mb-2">First clips</p>
-        <p className={`text-sm leading-relaxed ${jobStatus === 'error' ? 'text-danger' : 'text-muted'}`}>
+        <p className={`text-sm leading-relaxed ${jobStatus === 'error' ? 'text-danger font-medium' : 'text-ink2'}`}>
           {jobStatus === 'error'
             ? `${errorText ? `That video could not be clipped: ${errorText}` : 'That run failed.'} Try another video. Other tools unlock once one job finishes.`
             : 'Hang on — Clip Generator is finding the moments and cutting vertical shorts.'}
@@ -168,10 +168,10 @@ export default function ClipTutorial({ phase, jobStatus, errorText, onStart, onS
             card px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-1"
           role="status"
         >
-          <p className="text-sm text-muted leading-snug flex-1 min-w-0">
+          <p className="text-sm text-ink2 leading-snug flex-1 min-w-0 font-medium">
             Your turn — add a video and generate.
           </p>
-          <button type="button" onClick={onSkip} className="text-xs lowercase text-muted hover:text-ink shrink-0">
+          <button type="button" onClick={onSkip} className="text-xs lowercase text-ink2 hover:text-ink shrink-0 font-medium">
             skip
           </button>
         </div>
@@ -183,16 +183,16 @@ export default function ClipTutorial({ phase, jobStatus, errorText, onStart, onS
 
     return (
       <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-label="Clip Generator tutorial">
-        {!hole && <div className="absolute inset-0 bg-black/55" />}
+        {!hole && <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" />}
         {hole && (
           <div
-            className="absolute rounded-input pointer-events-none border border-brass/70"
+            className="absolute rounded-input pointer-events-none border-2 border-brass"
             style={{
               top: hole.top,
               left: hole.left,
               width: hole.width,
               height: hole.height,
-              boxShadow: '0 0 0 9999px rgba(0,0,0,0.55)',
+              boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.4)',
             }}
           />
         )}
@@ -207,7 +207,7 @@ export default function ClipTutorial({ phase, jobStatus, errorText, onStart, onS
         >
           <p className="eyebrow mb-2">{String(step + 1).padStart(2, '0')} / {String(TOUR.length).padStart(2, '0')}</p>
           <h3 className="font-display lowercase text-lg text-ink leading-tight mb-2">{spec.title}</h3>
-          <p className="text-sm text-muted leading-relaxed mb-4">{spec.body}</p>
+          <p className="text-sm text-ink2 leading-relaxed mb-4">{spec.body}</p>
           <div className="flex flex-wrap items-center gap-2">
             {step > 0 && (
               <button type="button" onClick={() => setStep((s) => s - 1)} className="btn-ghost text-sm px-3">
@@ -222,7 +222,7 @@ export default function ClipTutorial({ phase, jobStatus, errorText, onStart, onS
               {last ? 'Got it' : 'Next'} <ArrowRight size={14} />
             </button>
           </div>
-          <button type="button" onClick={onSkip} className="mt-3 text-xs lowercase text-muted hover:text-ink transition-colors">
+          <button type="button" onClick={onSkip} className="mt-3 text-xs lowercase text-ink2 hover:text-ink font-medium transition-colors">
             skip — unlock the rest
           </button>
         </div>
@@ -237,10 +237,10 @@ export default function ClipTutorial({ phase, jobStatus, errorText, onStart, onS
           <div className="inline-flex p-3 bg-paper3 rounded-full text-ok mb-4">
             <CheckCircle2 size={28} />
           </div>
-          <p className="text-sm text-ink2 leading-relaxed mb-1">
+          <p className="text-sm text-ink2 leading-relaxed mb-1 font-medium">
             That is the whole product, on one video.
           </p>
-          <p className="text-sm text-muted leading-relaxed mb-6">
+          <p className="text-sm text-ink2 leading-relaxed mb-6">
             The other tools are unlocked. Come back to Clip Generator whenever you have another long video.
           </p>
           <button type="button" onClick={onDismissCelebrate} className="btn-primary w-full">

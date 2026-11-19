@@ -56,9 +56,9 @@ export default function HistoryTab({ onReopenProject }) {
 
   return (
     <div className="h-full overflow-y-auto p-8 max-w-5xl mx-auto animate-fade">
-      <p className="eyebrow mb-1.5">07 · HISTORY</p>
+      <p className="eyebrow mb-1.5 text-ink font-semibold">07 · HISTORY</p>
       <h1 className="font-display lowercase text-2xl text-ink mb-2">Your library</h1>
-      <p className="text-muted text-sm mb-8 lowercase">
+      <p className="text-ink2 text-sm mb-8 lowercase font-medium">
         All the shorts you've generated, saved while your plan is active. Kept for 7 days after your plan ends. Reopen a project to keep editing its clips.
       </p>
 
@@ -82,7 +82,7 @@ export default function HistoryTab({ onReopenProject }) {
                   <p className="text-sm text-ink font-medium truncate" title={project?.title || vids[0]?.title}>
                     {project?.title || vids[0]?.title || 'Project'}
                   </p>
-                  <p className="readout mt-0.5">
+                  <p className="readout text-ink2 font-medium mt-0.5">
                     {fmtDate(vids[0]?.created_at)} · {vids.length} clip{vids.length === 1 ? '' : 's'}
                   </p>
                 </div>
@@ -108,8 +108,8 @@ export default function HistoryTab({ onReopenProject }) {
                     <div className="p-3">
                       <p className="text-sm text-ink font-medium line-clamp-2 mb-1" title={v.title}>{v.title || 'Short'}</p>
                       <div className="flex items-center justify-between">
-                        <span className="readout">{fmtDate(v.created_at)}</span>
-                        <a href={v.download_url} className="text-micro font-mono uppercase text-brass hover:text-ink flex items-center gap-1 transition-colors" title="Download">
+                        <span className="readout text-ink2 font-medium">{fmtDate(v.created_at)}</span>
+                        <a href={v.download_url} className="text-micro font-mono uppercase text-brass font-medium hover:text-ink flex items-center gap-1 transition-colors" title="Download">
                           <Download size={14} /> Download
                         </a>
                       </div>

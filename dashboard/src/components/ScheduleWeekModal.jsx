@@ -235,7 +235,7 @@ export default function ScheduleWeekModal({ isOpen, onClose, clips, jobId, uploa
                         value={time}
                         onChange={(e) => setTime(e.target.value)}
                         disabled={scheduling}
-                        className="input-field [color-scheme:dark]"
+                        className="input-field"
                     />
                 </div>
                 <div>
@@ -286,14 +286,14 @@ export default function ScheduleWeekModal({ isOpen, onClose, clips, jobId, uploa
                 {schedule.map(({ clip, index, date }) => (
                     <div key={index} className="flex items-center gap-3 py-2.5">
                         <div className="w-24 shrink-0">
-                            <span className="readout">{getDayLabel(date)} · {formatDate(date)}</span>
+                            <span className="readout font-mono font-medium text-ink2">{getDayLabel(date)} · {formatDate(date)}</span>
                         </div>
 
                         <div className="flex-1 min-w-0">
-                            <div className="text-xs text-ink truncate">
+                            <div className="text-xs text-ink font-medium truncate">
                                 {clip.video_title_for_youtube_short || 'Viral Short'}
                             </div>
-                            <div className="readout mt-0.5 truncate">
+                            <div className="readout mt-0.5 truncate text-ink2">
                                 {time} · {TIMEZONES.find(t => t.value === timezone)?.label || timezone}
                             </div>
                         </div>
@@ -337,8 +337,8 @@ export default function ScheduleWeekModal({ isOpen, onClose, clips, jobId, uploa
             {(scheduling || done) && (
                 <div className="mb-1">
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs text-muted lowercase">{scheduling ? 'scheduling...' : 'complete'}</span>
-                        <span className="readout">{progress.current}/{progress.total}</span>
+                        <span className="text-xs text-ink2 font-medium lowercase">{scheduling ? 'scheduling...' : 'complete'}</span>
+                        <span className="readout font-mono font-medium">{progress.current}/{progress.total}</span>
                     </div>
                     <div className="w-full h-1.5 bg-paper3 rounded-full overflow-hidden">
                         <div

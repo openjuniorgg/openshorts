@@ -2,7 +2,7 @@ import { X } from 'lucide-react';
 
 /**
  * The single modal shell for the app (design.md).
- * Plain dark overlay (no backdrop-blur), hairline paper2 panel.
+ * Soft dimmed overlay with subtle backdrop blur, hairline paper2 panel with rule2 border.
  *
  * Props:
  *  - isOpen / onClose
@@ -28,13 +28,14 @@ export default function Modal({ isOpen, onClose, title, eyebrow, size = 'md', ch
        run taller than a centred dialog whose 4px side margins wasted the only
        width there was. From sm up it is the centred dialog it always was. */
     <div
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 p-0 sm:p-4 animate-fade"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-[2px] p-0 sm:p-4 animate-fade"
       onMouseDown={(e) => { if (e.target === e.currentTarget && onClose) onClose(); }}
       role="dialog"
       aria-modal="true"
     >
       <div
         className={`card relative w-full ${SIZES[size] || SIZES.md} max-h-[92vh] sm:max-h-[90vh] flex flex-col
+          bg-paper2 border border-rule2 text-ink shadow-2xl
           rounded-b-none sm:rounded-card animate-sheet-up sm:animate-none`}
       >
         {/* Grab handle: the affordance that says "this sheet closes downward". */}
@@ -45,7 +46,7 @@ export default function Modal({ isOpen, onClose, title, eyebrow, size = 'md', ch
           <button
             onClick={onClose}
             aria-label="close"
-            className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 p-2 rounded-full text-muted hover:text-ink hover:bg-paper3 transition-colors"
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 p-2 rounded-full text-ink2/80 hover:text-ink hover:bg-paper3 transition-colors"
           >
             <X size={18} />
           </button>

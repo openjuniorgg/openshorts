@@ -26,13 +26,13 @@ export default function ProfileMenu({ onUpgrade = null }) {
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label="Account menu"
-        className="w-8 h-8 rounded-full bg-paper3 border border-rule hover:border-rule2 text-brass flex items-center justify-center text-sm font-medium transition-colors"
+        className="w-8 h-8 rounded-full bg-paper3 border border-rule2 hover:border-brass text-brass flex items-center justify-center text-sm font-semibold transition-colors shadow-xs"
       >
         {initial}
       </button>
 
       {open && (
-        <div className="card absolute right-0 top-full mt-2 w-56 z-30 shadow-none overflow-hidden animate-fade">
+        <div className="card absolute right-0 top-full mt-2 w-56 z-30 bg-paper2 border border-rule2 shadow-xl rounded-card overflow-hidden animate-fade">
           <div className="px-4 py-3 border-b border-rule">
             <p className="eyebrow">Signed in as</p>
             <p className="text-sm text-ink truncate mt-0.5" title={user.email}>{user.email}</p>

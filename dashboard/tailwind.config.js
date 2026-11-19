@@ -1,4 +1,14 @@
 /** @type {import('tailwindcss').Config} */
+
+function withOpacity(variableName) {
+  return ({ opacityValue }) => {
+    if (opacityValue !== undefined) {
+      return `color-mix(in srgb, var(${variableName}) calc(${opacityValue} * 100%), transparent)`;
+    }
+    return `var(${variableName})`;
+  };
+}
+
 export default {
   content: [
     "./index.html",
@@ -7,25 +17,25 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Lumen · Night Foundry — values mirror tokens.css (kept literal so
-        // Tailwind alpha modifiers like bg-brass/10 compile)
-        paper: "oklch(13% 0.014 265 / <alpha-value>)",
-        paper2: "oklch(16.5% 0.015 265 / <alpha-value>)",
-        paper3: "oklch(20% 0.016 265 / <alpha-value>)",
-        ink: "oklch(96% 0.006 262 / <alpha-value>)",
-        ink2: "oklch(86% 0.01 262 / <alpha-value>)",
-        muted: "oklch(64% 0.012 262 / <alpha-value>)",
-        brass: "oklch(76% 0.17 50 / <alpha-value>)",
-        brassink: "oklch(17% 0.03 50 / <alpha-value>)",
-        coral: "oklch(68% 0.16 18 / <alpha-value>)",
-        ok: "oklch(75% 0.11 150 / <alpha-value>)",
-        warn: "oklch(78% 0.14 75 / <alpha-value>)",
-        danger: "oklch(66% 0.18 25 / <alpha-value>)",
+        // Lumen · Crisp White Theme — dynamically references tokens.css variables
+        // with color-mix alpha modifier support
+        paper: withOpacity('--color-paper'),
+        paper2: withOpacity('--color-paper-2'),
+        paper3: withOpacity('--color-paper-3'),
+        ink: withOpacity('--color-ink'),
+        ink2: withOpacity('--color-ink-2'),
+        muted: withOpacity('--color-muted'),
+        brass: withOpacity('--color-accent'),
+        brassink: withOpacity('--color-accent-ink'),
+        coral: withOpacity('--color-accent-2'),
+        ok: withOpacity('--color-ok'),
+        warn: withOpacity('--color-warn'),
+        danger: withOpacity('--color-danger'),
         // legacy aliases so untouched files degrade gracefully
-        background: "oklch(13% 0.014 265 / <alpha-value>)",
-        surface: "oklch(16.5% 0.015 265 / <alpha-value>)",
-        primary: "oklch(76% 0.17 50 / <alpha-value>)",
-        accent: "oklch(68% 0.16 18 / <alpha-value>)",
+        background: withOpacity('--color-paper'),
+        surface: withOpacity('--color-paper-2'),
+        primary: withOpacity('--color-accent'),
+        accent: withOpacity('--color-accent-2'),
       },
       fontFamily: {
         display: "var(--font-display)",

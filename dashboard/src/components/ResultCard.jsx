@@ -14,7 +14,7 @@ import TikTokDraftNotice from './TikTokDraftNotice';
 import { useAuth } from '../contexts/AuthContext';
 import { renderInBrowser } from '../lib/renderInBrowser';
 
-const QUIET_BTN = 'group flex flex-col items-center justify-center gap-1 py-2.5 sm:py-2 px-1 rounded-input border border-rule hover:bg-paper3 text-[11px] lowercase text-ink2 whitespace-nowrap transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
+const QUIET_BTN = 'group flex flex-col items-center justify-center gap-1 py-2.5 sm:py-2 px-1 rounded-input border border-rule2 hover:bg-paper3 text-[11px] lowercase text-ink font-medium whitespace-nowrap transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
 
 // Follow an async post (request_id from /api/social/post) for about a minute.
 // Returns {done, failed}: done once every platform finished, failed lists
@@ -868,7 +868,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                     {/* Stays the clip's own number, not its rank: the cards are
                         ordered by score, but this is what the downloaded file
                         is called (clip-N.mp4) and what every api call indexes. */}
-                    <span className="bg-black/70 text-ink font-mono text-micro uppercase px-2 py-1 rounded-full">
+                    <span className="bg-paper/90 backdrop-blur-sm border border-rule shadow-sm text-ink font-mono text-micro uppercase px-2.5 py-1 rounded-full">
                         Clip {index + 1}
                     </span>
                     {/* A bare number on a thumbnail reads as a duration, a
@@ -876,26 +876,26 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                         its scale, or it is decoration. */}
                     {Number.isFinite(clip.predicted_score) && (
                         <span
-                            className="bg-black/70 font-mono text-micro uppercase px-2 py-1 rounded-full flex items-center gap-1"
+                            className="bg-paper/90 backdrop-blur-sm border border-rule shadow-sm font-mono text-micro uppercase px-2.5 py-1 rounded-full flex items-center gap-1"
                             title="openshorts' prediction of how well this clip will perform, from 0 to 100"
                         >
-                            <TrendingUp size={11} className="shrink-0 text-muted" />
-                            <span className="text-muted">viral</span>
+                            <TrendingUp size={11} className="shrink-0 text-ink2" />
+                            <span className="text-ink2 font-medium">viral</span>
                             <b className={
                                 clip.predicted_score >= 80 ? 'text-ok'
                                     : clip.predicted_score >= 65 ? 'text-brass'
-                                        : 'text-ink2'
+                                        : 'text-ink'
                             }>
                                 {clip.predicted_score}
                             </b>
-                            <span className="text-muted">/100</span>
+                            <span className="text-ink2 font-medium">/100</span>
                         </span>
                     )}
                 </div>
 
                 {/* Auto Edit Overlay if Processing */}
                 {isEditing && (
-                    <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-10 p-4 text-center">
+                    <div className="absolute inset-0 bg-paper/90 backdrop-blur-sm flex flex-col items-center justify-center z-10 p-4 text-center">
                         <Loader2 size={28} className="text-brass animate-spin mb-3" />
                         <span className="text-xs text-ink lowercase">ai magic in progress…</span>
                         <span className="readout mt-1.5">APPLYING VIRAL EDITS · ZOOMS</span>
@@ -919,7 +919,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                         >
                             <p
                                 ref={whyRef}
-                                className={`text-xs text-muted leading-snug line-clamp-2 break-words ${whyClamped ? 'cursor-pointer' : ''}`}
+                                className={`text-xs text-ink2 leading-snug line-clamp-2 break-words ${whyClamped ? 'cursor-pointer' : ''}`}
                                 onClick={() => whyClamped && setWhyOpen(v => !v)}
                                 aria-label="why openshorts picked this moment"
                             >
@@ -928,7 +928,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                             {whyClamped && whyOpen && (
                                 <div
                                     role="tooltip"
-                                    className="absolute left-0 right-0 top-full mt-1 z-20 bg-paper border border-rule rounded-input px-3 py-2 text-xs text-ink leading-snug shadow-lg"
+                                    className="absolute left-0 right-0 top-full mt-1 z-20 bg-paper border border-rule2 rounded-input px-3 py-2 text-xs text-ink leading-snug shadow-lg"
                                 >
                                     {clip.why}
                                 </div>
@@ -936,40 +936,40 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                         </div>
                     )}
                     <div className="flex flex-wrap gap-1.5">
-                        {durationReadout && <span className="readout bg-paper3 px-2 py-0.5 rounded-full shrink-0">{durationReadout}</span>}
-                        {resolution && <span className="readout bg-paper3 px-2 py-0.5 rounded-full shrink-0">{resolution}</span>}
-                        {isPro && <span className="readout bg-paper3 px-2 py-0.5 rounded-full shrink-0 text-brass">pro mode</span>}
-                        {!isPro && clip.pro_suggested && <span className="readout bg-paper3 px-2 py-0.5 rounded-full shrink-0 text-brass">pro recommended</span>}
-                        <span className="readout bg-paper3 px-2 py-0.5 rounded-full shrink-0">#shorts</span>
-                        <span className="readout bg-paper3 px-2 py-0.5 rounded-full shrink-0">#viral</span>
+                        {durationReadout && <span className="readout bg-paper3 border border-rule px-2 py-0.5 rounded-full shrink-0 text-ink font-medium">{durationReadout}</span>}
+                        {resolution && <span className="readout bg-paper3 border border-rule px-2 py-0.5 rounded-full shrink-0 text-ink font-medium">{resolution}</span>}
+                        {isPro && <span className="readout bg-paper3 border border-brass/50 px-2 py-0.5 rounded-full shrink-0 text-brass font-medium">pro mode</span>}
+                        {!isPro && clip.pro_suggested && <span className="readout bg-paper3 border border-brass/50 px-2 py-0.5 rounded-full shrink-0 text-brass font-medium">pro recommended</span>}
+                        <span className="readout bg-paper3 border border-rule px-2 py-0.5 rounded-full shrink-0 text-ink font-medium">#shorts</span>
+                        <span className="readout bg-paper3 border border-rule px-2 py-0.5 rounded-full shrink-0 text-ink font-medium">#viral</span>
                     </div>
                 </div>
 
                 {/* Descriptions (compact) — full text lives in the modal */}
                 <div className="flex-1 min-h-0 space-y-2 mb-4">
                     <div className="bg-paper rounded-input px-3 py-2 border border-rule flex items-center gap-2 min-w-0 overflow-hidden">
-                        <span className="eyebrow shrink-0">YOUTUBE</span>
-                        <p className="text-xs text-ink2 truncate flex-1 min-w-0">
+                        <span className="eyebrow shrink-0 text-ink font-semibold">YOUTUBE</span>
+                        <p className="text-xs text-ink truncate flex-1 min-w-0 font-medium">
                             {clip.video_title_for_youtube_short || "Viral Short Video"}
                         </p>
                         <button
                             onClick={() => handleCopy('youtube', clip.video_title_for_youtube_short || "Viral Short Video")}
                             aria-label="copy youtube title"
-                            className="p-1 rounded-full text-muted hover:text-brass transition-colors shrink-0"
+                            className="p-1 rounded-full text-ink2 hover:text-brass transition-colors shrink-0"
                         >
                             {copied === 'youtube' ? <Check size={14} className="text-ok" /> : <Copy size={14} />}
                         </button>
                     </div>
 
                     <div className="bg-paper rounded-input px-3 py-2 border border-rule flex items-center gap-2 min-w-0 overflow-hidden">
-                        <span className="eyebrow shrink-0">TIKTOK · IG</span>
-                        <p className="text-xs text-ink2 truncate flex-1 min-w-0">
+                        <span className="eyebrow shrink-0 text-ink font-semibold">TIKTOK · IG</span>
+                        <p className="text-xs text-ink truncate flex-1 min-w-0 font-medium">
                             {clip.video_description_for_tiktok || clip.video_description_for_instagram}
                         </p>
                         <button
                             onClick={() => handleCopy('caption', clip.video_description_for_tiktok || clip.video_description_for_instagram)}
                             aria-label="copy caption"
-                            className="p-1 rounded-full text-muted hover:text-brass transition-colors shrink-0"
+                            className="p-1 rounded-full text-ink2 hover:text-brass transition-colors shrink-0"
                         >
                             {copied === 'caption' ? <Check size={14} className="text-ok" /> : <Copy size={14} />}
                         </button>
@@ -977,7 +977,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
 
                     <button
                         onClick={() => setShowDescModal(true)}
-                        className="w-full flex items-center justify-center gap-2 py-2 rounded-input border border-dashed border-rule text-xs lowercase text-muted hover:text-brass hover:border-rule2 transition-colors"
+                        className="w-full flex items-center justify-center gap-2 py-2 rounded-input border border-dashed border-rule2 text-xs lowercase text-ink2 font-medium hover:text-brass hover:border-brass transition-colors"
                     >
                         <FileText size={14} /> view descriptions
                     </button>
@@ -1011,7 +1011,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                     </button>
                 )}
                 {canSwitchMode && (isPro || !clip.pro_suggested) && (
-                    <p className="mb-2 text-[11px] leading-snug text-muted">
+                    <p className="mb-2 text-[11px] leading-snug text-ink2">
                         {isPro
                             ? 'Pro mode is on: tighter frame on the face, pauses cut, cinematic look. You can switch back to normal any time.'
                             : 'Pro mode is recommended only for podcasts and talking-head clips, where the picture is one person speaking.'}
@@ -1025,7 +1025,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                             onClick={() => onEditClip(index)}
                             className={QUIET_BTN}
                         >
-                            <Scissors size={16} className="text-muted group-hover:text-brass transition-colors shrink-0" />
+                            <Scissors size={16} className="text-ink2 group-hover:text-brass transition-colors shrink-0" />
                             edit clip
                         </button>
                     )}
@@ -1035,7 +1035,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                             onClick={() => onReframeClip(index)}
                             className={QUIET_BTN}
                         >
-                            <Crosshair size={16} className="text-muted group-hover:text-brass transition-colors shrink-0" />
+                            <Crosshair size={16} className="text-ink2 group-hover:text-brass transition-colors shrink-0" />
                             reframing
                         </button>
                     )}
@@ -1051,7 +1051,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                         >
                             {isSwitchingMode
                                 ? <Loader2 size={16} className={`animate-spin shrink-0 ${!isPro && clip.pro_suggested ? '' : 'text-brass'}`} />
-                                : <Sparkles size={16} className={!isPro && clip.pro_suggested ? 'shrink-0' : `${isPro ? 'text-brass' : 'text-muted'} group-hover:text-brass transition-colors shrink-0`} />}
+                                : <Sparkles size={16} className={!isPro && clip.pro_suggested ? 'shrink-0' : `${isPro ? 'text-brass' : 'text-ink2'} group-hover:text-brass transition-colors shrink-0`} />}
                             {isSwitchingMode ? 'rendering…' : isPro ? 'normal mode' : 'pro mode'}
                         </button>
                     )}
@@ -1061,7 +1061,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                         disabled={isEditing}
                         className={QUIET_BTN}
                     >
-                        {isEditing ? <Loader2 size={16} className="animate-spin text-brass shrink-0" /> : <Wand2 size={16} className="text-muted group-hover:text-brass transition-colors shrink-0" />}
+                        {isEditing ? <Loader2 size={16} className="animate-spin text-brass shrink-0" /> : <Wand2 size={16} className="text-ink2 group-hover:text-brass transition-colors shrink-0" />}
                         {isEditing ? 'editing…' : 'auto edit'}
                     </button>
 
@@ -1070,7 +1070,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                         disabled={isSubtitling}
                         className={QUIET_BTN}
                     >
-                        {isSubtitling ? <Loader2 size={16} className="animate-spin text-brass shrink-0" /> : <Type size={16} className="text-muted group-hover:text-brass transition-colors shrink-0" />}
+                        {isSubtitling ? <Loader2 size={16} className="animate-spin text-brass shrink-0" /> : <Type size={16} className="text-ink2 group-hover:text-brass transition-colors shrink-0" />}
                         {isSubtitling ? 'adding…' : 'subtitles'}
                     </button>
 
@@ -1079,7 +1079,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                         disabled={isHooking}
                         className={QUIET_BTN}
                     >
-                        {isHooking ? <Loader2 size={16} className="animate-spin text-brass shrink-0" /> : <Wand2 size={16} className="text-muted group-hover:text-brass transition-colors shrink-0" />}
+                        {isHooking ? <Loader2 size={16} className="animate-spin text-brass shrink-0" /> : <Wand2 size={16} className="text-ink2 group-hover:text-brass transition-colors shrink-0" />}
                         {isHooking ? 'saving…' : 'edit hook'}
                     </button>
 
@@ -1088,7 +1088,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                         disabled={isTranslating}
                         className={QUIET_BTN}
                     >
-                        {isTranslating ? <Loader2 size={16} className="animate-spin text-brass shrink-0" /> : <Languages size={16} className="text-muted group-hover:text-brass transition-colors shrink-0" />}
+                        {isTranslating ? <Loader2 size={16} className="animate-spin text-brass shrink-0" /> : <Languages size={16} className="text-ink2 group-hover:text-brass transition-colors shrink-0" />}
                         {isTranslating ? 'translating…' : 'dub voice'}
                     </button>
 
@@ -1111,7 +1111,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                         }}
                         className={`${QUIET_BTN}${onEditClip ? ' col-span-2' : ''}`}
                     >
-                        <Download size={16} className="text-muted group-hover:text-brass transition-colors shrink-0" />
+                        <Download size={16} className="text-ink2 group-hover:text-brass transition-colors shrink-0" />
                         {downloadPct === null ? 'download' : `downloading ${downloadPct}%`}
                     </button>
                 </div>
@@ -1247,7 +1247,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                                     type="datetime-local"
                                     value={scheduleDate}
                                     onChange={(e) => setScheduleDate(e.target.value)}
-                                    className="input-field [color-scheme:dark]"
+                                    className="input-field [color-scheme:light]"
                                 />
                             </div>
                         )}

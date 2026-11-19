@@ -46,6 +46,20 @@ from jsonfile import write_json_atomic
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module='google.protobuf')
 
+if sys.platform == "win32":
+    for _base in (
+        os.path.join(sys.prefix, "Lib", "site-packages", "nvidia"),
+        os.path.join(os.path.dirname(__file__), ".venv", "Lib", "site-packages", "nvidia"),
+    ):
+        if os.path.isdir(_base):
+            for _root, _dirs, _files in os.walk(_base):
+                if any(_f.lower().endswith(".dll") for _f in _files):
+                    try:
+                        os.add_dll_directory(_root)
+                        os.environ["PATH"] = _root + os.pathsep + os.environ.get("PATH", "")
+                    except Exception:
+                        pass
+
 # Load environment variables
 load_dotenv()
 

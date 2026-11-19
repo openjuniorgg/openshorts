@@ -27,16 +27,16 @@ export default function StepIndicator({ steps, current, onStepClick }) {
             >
               <span
                 className={`w-6 h-6 rounded-full border flex items-center justify-center font-mono text-[10px] transition-colors duration-200
-                  ${active ? 'border-brass text-brass' : done ? 'border-rule2 text-ok' : 'border-rule text-muted'}`}
+                  ${active ? 'border-brass bg-brass/10 text-brass font-bold' : done ? 'border-ok/40 bg-ok/10 text-ok font-semibold' : 'border-rule bg-paper2 text-muted'}`}
               >
                 {done ? <Check size={11} /> : String(i + 1).padStart(2, '0')}
               </span>
-              <span className={`hidden sm:block text-micro font-mono uppercase tracking-widest ${active ? 'text-ink' : 'text-muted'}`}>
+              <span className={`hidden sm:block text-micro font-mono uppercase tracking-widest ${active ? 'text-ink font-semibold' : 'text-muted'}`}>
                 {label}
               </span>
             </button>
             {i < steps.length - 1 && (
-              <span className={`h-px flex-1 mx-1.5 sm:mx-3 ${done ? 'bg-brass/40' : 'bg-[color:var(--color-rule)]'}`} aria-hidden="true" />
+              <span className={`h-px flex-1 mx-1.5 sm:mx-3 ${done ? 'bg-brass/50' : 'bg-rule'}`} aria-hidden="true" />
             )}
           </li>
         );

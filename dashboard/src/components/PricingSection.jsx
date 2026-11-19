@@ -142,10 +142,10 @@ export default function PricingSection({ onRequireLogin }) {
         {/* Free tier — no card, Google sign-in only */}
         <div className="relative card p-6 flex flex-col">
           <h3 className="font-display lowercase text-xl text-ink">free</h3>
-          <p className="text-muted text-sm mb-4 lowercase">Try it on your own videos</p>
+          <p className="text-ink2 text-sm mb-4 lowercase font-medium">Try it on your own videos</p>
           <div className="mb-4 flex items-baseline gap-1.5">
             <span className="font-display text-4xl text-ink tabular-nums">$0</span>
-            <span className="readout">/mo</span>
+            <span className="readout font-mono text-ink2">/mo</span>
           </div>
           <ul className="space-y-2 text-sm text-ink2 mb-6 flex-1">
             <li className="flex items-start gap-2"><Check size={16} className="text-ok shrink-0 mt-0.5" /> <span><b>{FREE_MINUTES} min</b> of video / month</span></li>
@@ -153,8 +153,8 @@ export default function PricingSection({ onRequireLogin }) {
             <li className="flex items-start gap-2"><Cpu size={16} className="text-ok shrink-0 mt-0.5" /> <span>Same <b>GPU rendering</b>, about 50s per 8-min video</span></li>
             <li className="flex items-start gap-2"><KeyRound size={16} className="text-ok shrink-0 mt-0.5" /> <span>Gemini key included, no setup</span></li>
             <li className="flex items-start gap-2"><Check size={16} className="text-ok shrink-0 mt-0.5" /> <span>No credit card — Google sign-in</span></li>
-            <li className="flex items-start gap-2"><Check size={16} className="text-muted shrink-0 mt-0.5" /> <span className="text-muted">Watermark · clips kept 7 days</span></li>
-            <li className="flex items-start gap-2"><Check size={16} className="text-muted shrink-0 mt-0.5" /> <span className="text-muted">Download only: no auto-posting or Autopilot</span></li>
+            <li className="flex items-start gap-2"><Check size={16} className="text-ink2/70 shrink-0 mt-0.5" /> <span className="text-ink2">Watermark · clips kept 7 days</span></li>
+            <li className="flex items-start gap-2"><Check size={16} className="text-ink2/70 shrink-0 mt-0.5" /> <span className="text-ink2">Download only: no auto-posting or Autopilot</span></li>
           </ul>
           <button
             onClick={() => { window.location.hash = '#app'; }}
@@ -162,7 +162,7 @@ export default function PricingSection({ onRequireLogin }) {
           >
             Start free
           </button>
-          <p className="text-center text-xs text-muted mt-2 lowercase">free minutes reset monthly.</p>
+          <p className="text-center text-xs text-ink2 mt-2 lowercase font-medium">free minutes reset monthly.</p>
         </div>
 
         {PLAN_ORDER.map((plan) => {
@@ -180,10 +180,10 @@ export default function PricingSection({ onRequireLogin }) {
                 </span>
               )}
               <h3 className="font-display lowercase text-xl text-ink">{plan}</h3>
-              <p className="text-muted text-sm mb-4 lowercase">{PLAN_BLURB[plan]}</p>
+              <p className="text-ink2 text-sm mb-4 lowercase font-medium">{PLAN_BLURB[plan]}</p>
               <div className="mb-4 flex items-baseline gap-1.5">
                 <span className="font-display text-4xl text-ink tabular-nums">{fmt(entry.amount, entry.currency)}</span>
-                <span className="readout">/{interval === 'month' ? 'mo' : 'yr'}</span>
+                <span className="readout font-mono text-ink2">/{interval === 'month' ? 'mo' : 'yr'}</span>
               </div>
               <ul className="space-y-2 text-sm text-ink2 mb-6 flex-1">
                 <li className="flex items-start gap-2"><Check size={16} className="text-ok shrink-0 mt-0.5" /> <span><b>{entry.minutes} min</b> of video / month</span></li>
@@ -202,7 +202,7 @@ export default function PricingSection({ onRequireLogin }) {
               >
                 {busyPrice === entry.price_id ? <Loader2 size={18} className="animate-spin" /> : `Get ${plan}`}
               </button>
-              <p className="text-center text-xs text-muted mt-2 lowercase">billed {interval === 'month' ? 'monthly' : 'yearly'}. cancel anytime.</p>
+              <p className="text-center text-xs text-ink2 mt-2 lowercase font-medium">billed {interval === 'month' ? 'monthly' : 'yearly'}. cancel anytime.</p>
             </div>
           );
         })}

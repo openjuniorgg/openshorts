@@ -30,6 +30,9 @@ export default defineConfig({
     },
   },
   server: {
+    watch: {
+      ignored: ['**/dist/**', '**/.git/**']
+    },
     allowedHosts: [
       'openshorts.app',
       'www.openshorts.app'

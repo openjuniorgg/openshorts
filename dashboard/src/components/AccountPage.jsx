@@ -147,7 +147,7 @@ export default function AccountPage() {
         <div>
           <p className="eyebrow mb-1.5">ACCOUNT</p>
           <h2 className="font-display lowercase text-2xl text-ink leading-tight">Your account</h2>
-          <p className="text-muted text-sm mt-1">{me.user?.email}</p>
+          <p className="text-ink2 font-medium text-sm mt-1">{me.user?.email}</p>
         </div>
         <button onClick={logout} className="btn-quiet shrink-0">
           <LogOut size={16} /> Sign out
@@ -220,19 +220,19 @@ export default function AccountPage() {
 
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-muted lowercase">Plan minutes</span>
-            <span className="text-ink2">{fmt1(m.plan_used)} / {fmt1(m.plan_allowance)} used</span>
+            <span className="text-ink2 font-medium lowercase">Plan minutes</span>
+            <span className="text-ink font-semibold">{fmt1(m.plan_used)} / {fmt1(m.plan_allowance)} used</span>
           </div>
           <div className="h-1.5 bg-paper3 rounded-full overflow-hidden">
             <div className={`h-full transition-all ${low ? 'bg-warn' : 'bg-brass'}`} style={{ width: `${usedPct}%` }} />
           </div>
           <div className="flex justify-between text-sm pt-1">
-            <span className="text-muted lowercase">Top-up minutes</span>
-            <span className="text-ink2">{fmt1(m.topup_remaining)} remaining</span>
+            <span className="text-ink2 font-medium lowercase">Top-up minutes</span>
+            <span className="text-ink font-semibold">{fmt1(m.topup_remaining)} remaining</span>
           </div>
           <div className="flex justify-between text-sm pt-2 border-t border-rule">
-            <span className="text-ink font-medium lowercase">Total remaining</span>
-            <span className="text-brass font-medium">{fmt1(m.remaining)} min</span>
+            <span className="text-ink font-semibold lowercase">Total remaining</span>
+            <span className="text-brass font-bold">{fmt1(m.remaining)} min</span>
           </div>
         </div>
 
@@ -241,7 +241,7 @@ export default function AccountPage() {
         {me.has_billing_account && CANCELLABLE_STATES.includes(me.status) && !me.cancel_at_period_end && (
           <div className="pt-4 mt-4 border-t border-rule text-right">
             <button onClick={() => { track('CancelFlowOpened', { props: { plan } }); setCancelOpen(true); }}
-                    className="text-xs text-muted underline underline-offset-2 hover:text-ink">
+                    className="text-xs text-ink2 underline underline-offset-2 hover:text-ink font-medium">
               Cancel subscription
             </button>
           </div>
@@ -249,7 +249,7 @@ export default function AccountPage() {
         {me.has_billing_account && CANCELLABLE_STATES.includes(me.status) && me.cancel_at_period_end && (
           <div className="pt-4 mt-4 border-t border-rule flex items-center justify-between gap-3 text-sm text-ink2">
             <span>Your plan ends on {me.period_end ? new Date(me.period_end).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : 'the end of the period'}.</span>
-            <button onClick={resume} disabled={busy} className="btn-ghost px-4 py-2 text-xs shrink-0">
+            <button onClick={resume} disabled={busy} className="btn-ghost px-4 py-2 text-xs shrink-0 font-medium">
               Keep my subscription
             </button>
           </div>
@@ -273,7 +273,7 @@ export default function AccountPage() {
       {topups.length > 0 && (
         <div className="card p-6">
           <h3 className="font-display lowercase text-lg text-ink mb-1 flex items-center gap-2"><Plus size={16} className="text-brass" /> Buy more minutes</h3>
-          <p className="text-muted text-sm mb-4 lowercase">Top-ups never expire while your plan is active.</p>
+          <p className="text-ink2 text-sm mb-4 lowercase">Top-ups never expire while your plan is active.</p>
           <div className="grid grid-cols-2 gap-3">
             {topups.map((t) => (
               <button key={t.price_id} onClick={() => buyTopup(t.price_id)} disabled={busy}

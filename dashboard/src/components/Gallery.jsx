@@ -106,10 +106,10 @@ export default function Gallery() {
         <div className="h-full overflow-y-auto p-6 md:p-8 animate-fade">
             <div className="flex items-end justify-between mb-8">
                 <div>
-                    <p className="eyebrow mb-1.5">Library</p>
+                    <p className="eyebrow mb-1.5 text-ink font-semibold">Library</p>
                     <h1 className="font-display lowercase text-2xl text-ink">Clip Gallery</h1>
                 </div>
-                <span className="readout">
+                <span className="readout text-ink2 font-medium">
                     {clips.length} {clips.length === 1 ? 'Clip' : 'Clips'}{hasMore ? '+' : ''}
                 </span>
             </div>

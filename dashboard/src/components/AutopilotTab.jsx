@@ -68,7 +68,7 @@ function Switch({ checked, onChange, disabled, label }) {
         onChange={(e) => onChange(e.target.checked)}
         className="sr-only peer"
       />
-      <span className="w-11 h-6 rounded-full bg-paper3 border border-rule2 peer-checked:bg-brass peer-disabled:opacity-40 transition-colors after:content-[''] after:absolute after:left-1 after:top-1 after:w-4 after:h-4 after:rounded-full after:bg-ink after:transition-transform peer-checked:after:translate-x-5" />
+      <span className="w-11 h-6 rounded-full bg-paper3 border border-rule2 peer-checked:bg-brass peer-disabled:opacity-40 transition-colors after:content-[''] after:absolute after:left-1 after:top-1 after:w-4 after:h-4 after:rounded-full after:bg-paper after:shadow-sm after:border after:border-rule/40 after:transition-transform peer-checked:after:translate-x-5" />
     </span>
   );
 }
@@ -240,7 +240,7 @@ export default function AutopilotTab({ onOpenProject, onUpgrade, justConnected }
     <div className="max-w-4xl mx-auto animate-fade">
       <p className="eyebrow mb-1.5">02 · AUTOPILOT</p>
       <h1 className="font-display lowercase text-3xl text-ink mb-2">your channel, clipped on its own</h1>
-      <p className="text-muted text-sm mb-8 max-w-2xl">
+      <p className="text-ink2 text-sm mb-8 max-w-2xl leading-relaxed">
         Publish on YouTube as usual. Autopilot notices every new video, turns it into shorts
         and emails you when they are ready. Switch on autopublish and the best ones go out on
         TikTok, Instagram and YouTube Shorts, one a day.
@@ -257,7 +257,7 @@ export default function AutopilotTab({ onOpenProject, onUpgrade, justConnected }
           <h3 className="font-display lowercase text-lg text-ink mb-1 flex items-center gap-2">
             <Lock size={16} className="text-brass" /> included in paid plans
           </h3>
-          <p className="text-muted text-sm mb-4">
+          <p className="text-ink2 text-sm mb-4 leading-relaxed">
             Autopilot runs on your plan&apos;s minutes, so it comes with Starter, Creator and Pro.
             Every new upload turns into shorts without you opening OpenShorts.
           </p>
@@ -328,13 +328,13 @@ export default function AutopilotTab({ onOpenProject, onUpgrade, justConnected }
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="eyebrow mb-1">02 · AUTOPILOT</p>
-            <p className="text-ink">{s.enabled ? 'on: new videos are clipped automatically' : 'off'}</p>
-            <p className="text-muted text-sm mt-1">
+            <p className="text-ink font-medium">{s.enabled ? 'on: new videos are clipped automatically' : 'off'}</p>
+            <p className="text-ink2 text-sm mt-1">
               Only videos you publish from now on. Up to {limits.daily_auto || 1} video a day, the first
               {' '}{s.max_minutes || 30} minutes of each. Shorts are skipped.
             </p>
             {s.enabled && s.last_checked_at && (
-              <p className="readout mt-2 flex items-center gap-1"><Clock size={11} /> last check {fmtDate(s.last_checked_at)} · every hour</p>
+              <p className="readout mt-2 flex items-center gap-1 font-mono text-ink2"><Clock size={11} /> last check {fmtDate(s.last_checked_at)} · every hour</p>
             )}
           </div>
           <Switch
@@ -369,8 +369,8 @@ export default function AutopilotTab({ onOpenProject, onUpgrade, justConnected }
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="eyebrow mb-1">03 · AUTOPUBLISH</p>
-            <p className="text-ink">{s.autopublish ? 'the best clips are scheduled for you' : 'off: you review and post the clips yourself'}</p>
-            <p className="text-muted text-sm mt-1">
+            <p className="text-ink font-medium">{s.autopublish ? 'the best clips are scheduled for you' : 'off: you review and post the clips yourself'}</p>
+            <p className="text-ink2 text-sm mt-1">
               Picks the {s.clips_to_publish || 3} highest-scoring clips of each video and schedules
               them one a day at {String(s.publish_hour ?? 17).padStart(2, '0')}:00 ({s.timezone || browserTimezone()}).
             </p>
@@ -397,12 +397,12 @@ export default function AutopilotTab({ onOpenProject, onUpgrade, justConnected }
                       onClick={() => togglePlatform(p)}
                       disabled={saving}
                       aria-pressed={on}
-                      className={`px-4 py-2 rounded-full text-sm lowercase border transition-colors ${on ? 'border-brass bg-brass/10 text-ink' : 'border-rule2 text-muted hover:text-ink2'}`}
+                      className={`px-4 py-2 rounded-full text-sm lowercase border transition-colors ${on ? 'border-brass bg-brass/10 text-ink font-semibold' : 'border-rule2 bg-paper text-ink2 hover:text-ink'}`}
                     >
                       {on && <CheckCircle2 size={13} className="inline mr-1.5 -mt-0.5 text-brass" />}{PLATFORM_LABELS[p]}
                     </button>
                   ) : (
-                    <button key={p} onClick={connect} className="px-4 py-2 rounded-full text-sm lowercase border border-dashed border-rule2 text-muted hover:text-ink2">
+                    <button key={p} onClick={connect} className="px-4 py-2 rounded-full text-sm lowercase border border-dashed border-rule2 bg-paper text-ink2 hover:text-ink">
                       + connect {PLATFORM_LABELS[p]}
                     </button>
                   );
@@ -412,7 +412,7 @@ export default function AutopilotTab({ onOpenProject, onUpgrade, justConnected }
                 <p className="text-warn text-sm mt-3">Pick at least one account, or nothing gets published.</p>
               )}
               {(s.publish_platforms || []).includes('tiktok') && (
-                <p className="text-muted text-xs mt-3">TikTok clips arrive as drafts in your TikTok inbox: open the app to post them.</p>
+                <p className="text-ink2 text-xs mt-3">TikTok clips arrive as drafts in your TikTok inbox: open the app to post them.</p>
               )}
             </div>
             <div className="grid sm:grid-cols-2 gap-4 mt-5">
@@ -453,17 +453,17 @@ export default function AutopilotTab({ onOpenProject, onUpgrade, justConnected }
           <div className="flex items-center justify-between gap-3 mb-4">
             <div>
               <p className="eyebrow mb-1">04 · YOUR LATEST VIDEOS</p>
-              <p className="text-muted text-sm">Clip any of them now, or let Autopilot handle the next one.</p>
+              <p className="text-ink2 text-sm">Clip any of them now, or let Autopilot handle the next one.</p>
             </div>
             <button onClick={load} className="btn-quiet text-xs" aria-label="refresh"><RefreshCw size={13} /> refresh</button>
           </div>
           {listNotice && (
             <div className="mb-4 rounded-card border border-brass/40 bg-brass/5 px-4 py-3 text-sm text-ink2" role="status">{listNotice}</div>
           )}
-          {videosError && <p className="text-warn text-sm mb-3">{ERROR_TEXT[videosError] || 'Could not read your channel.'}</p>}
+          {videosError && <p className="text-warn text-sm mb-3 font-medium">{ERROR_TEXT[videosError] || 'Could not read your channel.'}</p>}
           {videos === null && <div className="flex justify-center py-6"><Loader2 className="animate-spin text-brass" size={18} /></div>}
           {videos && videos.length === 0 && !videosError && (
-            <p className="text-muted text-sm">No videos on this channel yet.</p>
+            <p className="text-ink2 text-sm">No videos on this channel yet.</p>
           )}
 
           <div className="divide-y divide-rule">

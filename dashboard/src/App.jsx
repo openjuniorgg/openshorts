@@ -148,17 +148,17 @@ const EXTRA_NETWORKS = SOCIAL_PLATFORMS.slice(3);
 
 const ProfileNetworkIcons = ({ profile, size = 12 }) => (
   <span className="flex items-center gap-1.5">
-    <span className={profile?.connected?.includes('tiktok') ? 'text-ink' : 'text-muted opacity-40'}>
+    <span className={profile?.connected?.includes('tiktok') ? 'text-ink' : 'text-muted/60'}>
       <TikTokIcon size={size} />
     </span>
-    <span className={profile?.connected?.includes('instagram') ? 'text-ink' : 'text-muted opacity-40'}>
+    <span className={profile?.connected?.includes('instagram') ? 'text-ink' : 'text-muted/60'}>
       <Instagram size={size} />
     </span>
-    <span className={profile?.connected?.includes('youtube') ? 'text-ink' : 'text-muted opacity-40'}>
+    <span className={profile?.connected?.includes('youtube') ? 'text-ink' : 'text-muted/60'}>
       <Youtube size={size} />
     </span>
     {EXTRA_NETWORKS.map((p) => (
-      <span key={p.value} className={profile?.connected?.includes(p.value) ? 'text-ink' : 'text-muted opacity-40'}>
+      <span key={p.value} className={profile?.connected?.includes(p.value) ? 'text-ink' : 'text-muted/60'}>
         <p.Icon size={size} />
       </span>
     ))}
@@ -180,7 +180,7 @@ const UserProfileSelector = ({ profiles, selectedUserId, onSelect, onConnect }) 
         aria-label="social profile"
         /* Phone: avatar + chevron only. A 180px pill next to the menu button,
            the section title and the minutes meter overflowed a 360px header. */
-        className="flex items-center justify-between gap-1 bg-paper2 border border-rule2 rounded-input px-2 sm:px-3 py-2 text-sm text-ink2 hover:bg-paper3 transition-colors sm:min-w-[180px]"
+        className="flex items-center justify-between gap-1 bg-paper2 border border-rule2 rounded-input px-2 sm:px-3 py-2 text-sm text-ink2 hover:bg-paper3 transition-colors sm:min-w-[180px] shadow-xs"
       >
         <span className="flex items-center gap-2">
           <div className="w-5 h-5 rounded-full bg-paper3 border border-rule flex items-center justify-center font-mono text-micro text-brass shrink-0">
@@ -196,7 +196,7 @@ const UserProfileSelector = ({ profiles, selectedUserId, onSelect, onConnect }) 
       </button>
 
       {isOpen && (
-        <div className="absolute top-full mt-2 right-0 w-64 card overflow-hidden">
+        <div className="absolute top-full mt-2 right-0 w-64 card bg-paper2 border border-rule2 shadow-xl rounded-card overflow-hidden">
           <div className="max-h-60 overflow-y-auto custom-scrollbar">
             {profiles.map((profile) => (
               <button
@@ -219,17 +219,17 @@ const UserProfileSelector = ({ profiles, selectedUserId, onSelect, onConnect }) 
                     </div>
                     <div className="flex gap-2 mt-0.5">
                       {/* Status indicators */}
-                      <div className={`flex items-center gap-1 ${profile.connected.includes('tiktok') ? 'text-ink2' : 'text-muted opacity-40'}`}>
+                      <div className={`flex items-center gap-1 ${profile.connected.includes('tiktok') ? 'text-ink2' : 'text-muted/60'}`}>
                         <TikTokIcon size={10} />
                       </div>
-                      <div className={`flex items-center gap-1 ${profile.connected.includes('instagram') ? 'text-ink2' : 'text-muted opacity-40'}`}>
+                      <div className={`flex items-center gap-1 ${profile.connected.includes('instagram') ? 'text-ink2' : 'text-muted/60'}`}>
                         <Instagram size={10} />
                       </div>
-                      <div className={`flex items-center gap-1 ${profile.connected.includes('youtube') ? 'text-ink2' : 'text-muted opacity-40'}`}>
+                      <div className={`flex items-center gap-1 ${profile.connected.includes('youtube') ? 'text-ink2' : 'text-muted/60'}`}>
                         <Youtube size={10} />
                       </div>
                       {EXTRA_NETWORKS.map((p) => (
-                        <div key={p.value} className={`flex items-center gap-1 ${profile.connected.includes(p.value) ? 'text-ink2' : 'text-muted opacity-40'}`}>
+                        <div key={p.value} className={`flex items-center gap-1 ${profile.connected.includes(p.value) ? 'text-ink2' : 'text-muted/60'}`}>
                           <p.Icon size={10} />
                         </div>
                       ))}
@@ -1212,6 +1212,7 @@ function App() {
         // The stretch picked under the cost line (seconds); absent = whole video.
         source_start: data.sourceStart ?? null,
         source_end: data.sourceEnd ?? null,
+        captions: data.captions ?? '0',
       };
 
       if (data.type === 'url') {
@@ -1454,12 +1455,12 @@ function App() {
               onClick={() => goToTab(item.id)}
               title={tabLocked(item.id) ? 'Finish your first clips to unlock' : item.label}
               disabled={tabLocked(item.id)}
-              className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-input transition-colors ${isActive ? 'bg-paper3 text-ink' : 'text-muted hover:text-ink2 hover:bg-paper3/50'} ${tabLocked(item.id) ? 'opacity-40 cursor-not-allowed hover:bg-transparent hover:text-muted' : ''}`}
+              className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-input transition-colors ${isActive ? 'bg-paper3 text-ink font-semibold shadow-xs' : 'text-ink2/85 hover:text-ink hover:bg-paper3/60'} ${tabLocked(item.id) ? 'opacity-55 cursor-not-allowed hover:bg-transparent hover:text-muted' : ''}`}
             >
               {isActive && (
                 <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-brass rounded-full" aria-hidden="true" />
               )}
-              <NavIcon size={18} className={`shrink-0 ${isActive ? 'text-brass' : ''}`} />
+              <NavIcon size={18} className={`shrink-0 ${isActive ? 'text-brass' : 'text-muted'}`} />
               <span className="text-sm lowercase hidden lg:block flex-1 text-left truncate">{item.label}</span>
               {tabLocked(item.id)
                 ? <Lock size={12} className="shrink-0 hidden lg:block" />
@@ -1486,11 +1487,11 @@ function App() {
       aria-label="Navigation"
     >
       <div
-        className="absolute inset-0 bg-black/60 animate-fade"
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] animate-fade"
         onClick={() => setNavOpen(false)}
         aria-hidden="true"
       />
-      <div className="relative w-[17rem] max-w-[82vw] h-full bg-paper2 border-r border-rule flex flex-col animate-slide-in-left">
+      <div className="relative w-[17rem] max-w-[82vw] h-full bg-paper2 border-r border-rule flex flex-col animate-slide-in-left shadow-2xl">
         <div className="flex items-center justify-between px-5 h-14 border-b border-rule shrink-0">
           <a href="#app" className="flex items-center gap-2.5" onClick={() => goToTab('dashboard')}>
             <div className="w-7 h-7 bg-paper3 rounded-input overflow-hidden border border-rule shrink-0">
@@ -1501,7 +1502,7 @@ function App() {
           <button
             onClick={() => setNavOpen(false)}
             aria-label="close navigation"
-            className="p-2 -mr-2 text-muted hover:text-ink transition-colors"
+            className="p-2 -mr-2 text-ink2 hover:text-ink hover:bg-paper3/60 rounded-input transition-colors"
           >
             <X size={18} />
           </button>
@@ -1518,12 +1519,12 @@ function App() {
                 disabled={tabLocked(item.id)}
                 aria-current={isActive ? 'page' : undefined}
                 title={tabLocked(item.id) ? 'Finish your first clips to unlock' : undefined}
-                className={`relative w-full flex items-center gap-3 px-3 py-3 rounded-input transition-colors ${isActive ? 'bg-paper3 text-ink' : 'text-muted active:bg-paper3/60'} ${tabLocked(item.id) ? 'opacity-40 cursor-not-allowed' : ''}`}
+                className={`relative w-full flex items-center gap-3 px-3 py-3 rounded-input transition-colors ${isActive ? 'bg-paper3 text-ink font-semibold shadow-xs' : 'text-ink2/85 hover:text-ink hover:bg-paper3/60 active:bg-paper3/80'} ${tabLocked(item.id) ? 'opacity-55 cursor-not-allowed' : ''}`}
               >
                 {isActive && (
                   <span className="absolute left-0 top-2 bottom-2 w-0.5 bg-brass rounded-full" aria-hidden="true" />
                 )}
-                <NavIcon size={18} className={`shrink-0 ${isActive ? 'text-brass' : ''}`} />
+                <NavIcon size={18} className={`shrink-0 ${isActive ? 'text-brass' : 'text-muted'}`} />
                 <span className="text-[0.95rem] lowercase flex-1 text-left truncate">{item.label}</span>
                 {tabLocked(item.id)
                   ? <Lock size={12} className="shrink-0" />
@@ -1548,7 +1549,7 @@ function App() {
     const tabs = navItems.filter((n) => n.primary);
     const moreActive = !tabs.some((t) => t.id === activeTab);
     return (
-      <nav className="md:hidden shrink-0 border-t border-rule bg-paper2/95 backdrop-blur-sm safe-bottom">
+      <nav className="md:hidden shrink-0 border-t border-rule bg-paper2/95 backdrop-blur-sm safe-bottom shadow-md">
         <div className="flex items-stretch">
           {tabs.map((item) => {
             const NavIcon = item.icon;
@@ -1561,9 +1562,9 @@ function App() {
                 disabled={tabLocked(item.id)}
                 aria-current={isActive ? 'page' : undefined}
                 title={tabLocked(item.id) ? 'Finish your first clips to unlock' : undefined}
-                className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1 py-2 min-h-[56px] transition-colors ${isActive ? 'text-ink' : 'text-muted active:text-ink2'} ${tabLocked(item.id) ? 'opacity-40 cursor-not-allowed' : ''}`}
+                className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1 py-2 min-h-[56px] transition-colors ${isActive ? 'text-ink font-semibold' : 'text-ink2/80 active:text-ink'} ${tabLocked(item.id) ? 'opacity-55 cursor-not-allowed' : ''}`}
               >
-                <NavIcon size={19} className={isActive ? 'text-brass' : ''} />
+                <NavIcon size={19} className={isActive ? 'text-brass' : 'text-muted'} />
                 <span className="text-[10.5px] lowercase leading-none truncate max-w-full px-0.5">{item.short}</span>
               </button>
             );
@@ -1572,9 +1573,9 @@ function App() {
             onClick={() => setNavOpen(true)}
             aria-label="more sections"
             aria-expanded={navOpen}
-            className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1 py-2 min-h-[56px] transition-colors ${moreActive ? 'text-ink' : 'text-muted active:text-ink2'}`}
+            className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1 py-2 min-h-[56px] transition-colors ${moreActive ? 'text-ink font-semibold' : 'text-ink2/80 active:text-ink'}`}
           >
-            <Menu size={19} className={moreActive ? 'text-brass' : ''} />
+            <Menu size={19} className={moreActive ? 'text-brass' : 'text-muted'} />
             <span className="text-[10.5px] lowercase leading-none">more</span>
           </button>
         </div>
@@ -2327,7 +2328,7 @@ function App() {
                 )}
 
                 {/* Logs Terminal */}
-                <div className={`bg-paper rounded-card border border-rule overflow-hidden flex flex-col transition-all duration-500 ${status === 'complete' ? `min-h-0 opacity-50 hover:opacity-100 ${logsVisible ? 'h-32' : 'h-auto'}` : `flex-1 ${logsVisible ? 'min-h-[160px] sm:min-h-[200px]' : 'min-h-0 flex-none'}`}`}>
+                <div className={`bg-paper rounded-card border border-rule overflow-hidden flex flex-col transition-all duration-500 ${status === 'complete' ? `min-h-0 opacity-80 hover:opacity-100 ${logsVisible ? 'h-32' : 'h-auto'}` : `flex-1 ${logsVisible ? 'min-h-[160px] sm:min-h-[200px]' : 'min-h-0 flex-none'}`}`}>
                   <button
                     type="button"
                     onClick={() => setLogsVisible(!logsVisible)}
@@ -2345,10 +2346,10 @@ function App() {
                     </span>
                   </button>
                   {logsVisible && (
-                    <div className="flex-1 p-3.5 sm:p-4 overflow-y-auto font-mono text-[11px] sm:text-xs space-y-1.5 custom-scrollbar text-muted break-words">
+                    <div className="flex-1 p-3.5 sm:p-4 overflow-y-auto font-mono text-[11px] sm:text-xs space-y-1.5 custom-scrollbar text-ink2 break-words">
                       {logs.map((log, i) => (
-                        <div key={i} className={`flex gap-2 ${log.toLowerCase().includes('error') ? 'text-danger' : 'text-muted'}`}>
-                          <span className="text-muted opacity-50 shrink-0 hidden sm:inline tabular-nums">
+                        <div key={i} className={`flex gap-2 ${log.toLowerCase().includes('error') ? 'text-danger font-medium' : 'text-ink2'}`}>
+                          <span className="text-muted shrink-0 hidden sm:inline tabular-nums">
                             {logTimes[i] ? new Date(logTimes[i] * 1000).toLocaleTimeString() : ''}
                           </span>
                           <span className="min-w-0 break-words">{log}</span>
@@ -2622,7 +2623,7 @@ function App() {
           </p>
 
           {/* Gemini block */}
-          <div className={`rounded-input p-4 space-y-2 border ${!apiKey ? 'border-rule2' : 'border-rule opacity-70'}`}>
+          <div className={`rounded-input p-4 space-y-2 border bg-paper ${!apiKey ? 'border-rule2 shadow-xs' : 'border-rule opacity-80'}`}>
             <p className="text-xs font-medium text-ink flex items-center gap-2">
               {apiKey ? <Check size={12} className="text-ok" /> : <AlertTriangle size={12} className="text-warn" />}
               Gemini API Key {apiKey && <span className="text-ok">— set</span>}
@@ -2650,7 +2651,7 @@ function App() {
           </div>
 
           {/* Upload-Post block */}
-          <div className={`rounded-input p-4 space-y-2 border ${!uploadPostKey ? 'border-rule2' : 'border-rule opacity-70'}`}>
+          <div className={`rounded-input p-4 space-y-2 border bg-paper ${!uploadPostKey ? 'border-rule2 shadow-xs' : 'border-rule opacity-80'}`}>
             <p className="text-xs font-medium text-ink flex items-center gap-2">
               {uploadPostKey ? <Check size={12} className="text-ok" /> : <AlertTriangle size={12} className="text-warn" />}
               Upload-Post API Key {uploadPostKey && <span className="text-ok">— set</span>}

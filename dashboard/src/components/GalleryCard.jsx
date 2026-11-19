@@ -84,13 +84,13 @@ export default function GalleryCard({ clip }) {
                     />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center bg-paper">
-                        <div className="w-12 h-12 rounded-full bg-paper3 flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-full bg-paper3 border border-rule flex items-center justify-center">
                             <Play size={24} className="text-muted ml-1" />
                         </div>
                     </div>
                 )}
                 <div className="absolute top-2 left-2">
-                    <span className="readout bg-black/70 px-2 py-1 rounded-full">
+                    <span className="readout bg-paper/90 backdrop-blur-sm border border-rule shadow-sm text-ink font-medium px-2 py-1 rounded-full">
                         {new Date(clip.created_at).toLocaleDateString()}
                     </span>
                 </div>
@@ -103,19 +103,19 @@ export default function GalleryCard({ clip }) {
                         {clip.title}
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                        <span className="readout bg-paper3 px-1.5 py-0.5 rounded-full">{clip.duration.toFixed(1)}s</span>
-                        <span className="readout bg-paper3 px-1.5 py-0.5 rounded-full truncate max-w-[150px]" title={clip.job_id}>ID: {clip.job_id.substring(0, 8)}</span>
+                        <span className="readout bg-paper3 border border-rule px-2 py-0.5 rounded-full text-ink font-medium">{clip.duration.toFixed(1)}s</span>
+                        <span className="readout bg-paper3 border border-rule px-2 py-0.5 rounded-full text-ink font-medium truncate max-w-[150px]" title={clip.job_id}>ID: {clip.job_id.substring(0, 8)}</span>
                     </div>
                 </div>
 
                 <div className="space-y-2 flex-1 overflow-y-auto custom-scrollbar max-h-[150px] pr-1 mb-3">
                     {/* YouTube Title */}
-                    <div className="bg-paper rounded-input p-2 relative group/item">
-                        <p className="eyebrow mb-1">YouTube Title</p>
-                        <p className="text-xs text-ink2 select-all line-clamp-2 hover:line-clamp-none transition-all">{clip.title}</p>
+                    <div className="bg-paper border border-rule rounded-input p-2 relative group/item">
+                        <p className="eyebrow mb-1 text-ink font-semibold">YouTube Title</p>
+                        <p className="text-xs text-ink select-all line-clamp-2 hover:line-clamp-none transition-all">{clip.title}</p>
                         <button
                             onClick={() => handleCopy(clip.title, 'yt')}
-                            className="absolute top-2 right-2 p-1 text-muted hover:text-brass transition-colors opacity-0 group-hover/item:opacity-100"
+                            className="absolute top-2 right-2 p-1 text-ink2 hover:text-brass transition-colors opacity-0 group-hover/item:opacity-100"
                             title="Copy Title"
                         >
                             {copied === 'yt' ? <Check size={12} className="text-ok" /> : <Copy size={12} />}
@@ -123,14 +123,14 @@ export default function GalleryCard({ clip }) {
                     </div>
 
                     {/* TikTok / IG Caption */}
-                    <div className="bg-paper rounded-input p-2 relative group/item">
-                        <p className="eyebrow mb-1">TikTok · IG Caption</p>
-                        <p className="text-xs text-ink2 select-all line-clamp-3 hover:line-clamp-none transition-all cursor-pointer">
+                    <div className="bg-paper border border-rule rounded-input p-2 relative group/item">
+                        <p className="eyebrow mb-1 text-ink font-semibold">TikTok · IG Caption</p>
+                        <p className="text-xs text-ink select-all line-clamp-3 hover:line-clamp-none transition-all cursor-pointer">
                             {clip.tiktok_desc || clip.insta_desc}
                         </p>
                         <button
                             onClick={() => handleCopy(clip.tiktok_desc || clip.insta_desc, 'caption')}
-                            className="absolute top-2 right-2 p-1 text-muted hover:text-brass transition-colors opacity-0 group-hover/item:opacity-100"
+                            className="absolute top-2 right-2 p-1 text-ink2 hover:text-brass transition-colors opacity-0 group-hover/item:opacity-100"
                             title="Copy Caption"
                         >
                             {copied === 'caption' ? <Check size={12} className="text-ok" /> : <Copy size={12} />}
@@ -141,7 +141,7 @@ export default function GalleryCard({ clip }) {
                 {/* Footer Action */}
                 <button
                     onClick={handleDownload}
-                    className="btn-quiet w-full"
+                    className="btn-quiet w-full font-medium text-ink"
                 >
                     <Download size={14} className="shrink-0" /> Download Clip
                 </button>

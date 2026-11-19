@@ -195,7 +195,7 @@ export default function CancelPlanModal({ plan, periodEnd, onClose, onCanceled }
             {REASONS.map(([value, label]) => (
               <label key={value}
                      className={`flex items-center gap-2.5 rounded-card border px-3 py-2 text-sm cursor-pointer transition-colors
-                       ${reason === value ? 'border-brass text-ink' : 'border-rule text-ink2 hover:border-brass/60'}`}>
+                       ${reason === value ? 'border-brass bg-paper3/70 text-ink font-medium shadow-xs' : 'border-rule bg-paper text-ink2 hover:border-brass/60 hover:bg-paper3/40'}`}>
                 <input type="radio" name="cancel-reason" value={value} checked={reason === value}
                        onChange={() => setReason(value)} />
                 {label}
@@ -249,7 +249,7 @@ export default function CancelPlanModal({ plan, periodEnd, onClose, onCanceled }
       {step === 2 && (
         <div className="space-y-4 text-sm text-ink2">
           {pause && (
-            <div className="rounded-card border border-brass bg-brass/5 p-4 space-y-3">
+            <div className="rounded-card border border-brass/50 bg-brass/10 p-4 space-y-3">
               <p className="text-ink">
                 Not using it right now? <b>Skip a month instead.</b> No charge from{' '}
                 {fmtDate(pause.pause_from)} for one month, your clips stay, and the plan
@@ -262,7 +262,7 @@ export default function CancelPlanModal({ plan, periodEnd, onClose, onCanceled }
             </div>
           )}
           {offer && (
-            <div className="rounded-card border border-brass bg-brass/5 p-4 space-y-3">
+            <div className="rounded-card border border-brass/50 bg-brass/10 p-4 space-y-3">
               <p className="text-ink">
                 Stay and get <b>{offer.percent_off}% off{months}</b>. Same plan, same
                 minutes, half the price.

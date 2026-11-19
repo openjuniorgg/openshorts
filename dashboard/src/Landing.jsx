@@ -74,7 +74,7 @@ const SectionHeader = ({ eyebrow, title, children }) => (
   <div className="mb-12">
     <p className="eyebrow mb-3">{eyebrow}</p>
     <h2 className="font-display text-3xl md:text-4xl lowercase text-ink tracking-tight mb-4">{title}</h2>
-    {children && <p className="text-muted max-w-2xl leading-relaxed">{children}</p>}
+    {children && <p className="text-ink2 max-w-2xl leading-relaxed">{children}</p>}
   </div>
 );
 
@@ -180,7 +180,7 @@ function FeatureShowcase() {
             role="tab"
             aria-selected={i === active}
             onClick={() => { setActive(i); setAuto(false); }}
-            className={`relative shrink-0 text-left rounded-card border px-4 py-3 text-sm lowercase transition-colors overflow-hidden ${i === active ? 'border-brass text-ink bg-paper2' : 'border-rule text-muted hover:text-ink'}`}
+            className={`relative shrink-0 text-left rounded-card border px-4 py-3 text-sm lowercase transition-colors overflow-hidden ${i === active ? 'border-brass text-ink bg-paper2 font-medium shadow-xs' : 'border-rule bg-paper text-muted hover:text-ink hover:bg-paper2'}`}
           >
             {f.tab}
             {i === active && auto && (
@@ -191,7 +191,7 @@ function FeatureShowcase() {
       </div>
       <div key={item.id} className="showcase-in min-w-0" role="tabpanel">
         <h3 className="font-display text-3xl md:text-4xl lowercase text-ink mb-3">{item.title}</h3>
-        <p className="text-muted max-w-2xl mb-6 leading-relaxed">{item.body}</p>
+        <p className="text-ink2 max-w-2xl mb-6 leading-relaxed">{item.body}</p>
         <ShowcaseMedia media={item.media} />
       </div>
     </div>
@@ -206,7 +206,7 @@ const FeatureCard = ({ icon, title, description }) => {
         <Icon size={18} className="text-brass" />
       </div>
       <h3 className="font-display text-xl lowercase text-ink mb-2">{title}</h3>
-      <p className="text-muted text-sm leading-relaxed">{description}</p>
+      <p className="text-ink2 text-sm leading-relaxed">{description}</p>
     </div>
   );
 };
@@ -218,7 +218,7 @@ const StepCard = ({ number, title, description }) => (
     </span>
     <div>
       <h3 className="text-ink font-medium mb-1">{title}</h3>
-      <p className="text-muted text-sm leading-relaxed">{description}</p>
+      <p className="text-ink2 text-sm leading-relaxed">{description}</p>
     </div>
   </div>
 );
@@ -243,7 +243,7 @@ const FAQItem = ({ question, answer, isOpen, onClick }) => (
     </button>
     {isOpen && (
       <div className="px-1 pb-6">
-        <p className="faq-answer text-muted text-sm leading-relaxed">{answer}</p>
+        <p className="faq-answer text-ink2 text-sm leading-relaxed">{answer}</p>
       </div>
     )}
   </div>
@@ -582,7 +582,7 @@ export default function Landing({ onLaunchApp }) {
               <span className="block"><em>viral shorts</em> out.</span>
             </h1>
 
-            <p className="hero-description text-muted max-w-2xl mb-8 leading-relaxed lowercase">
+            <p className="hero-description text-ink2 max-w-2xl mb-8 leading-relaxed lowercase">
               paste a youtube link or upload a podcast, stream or interview. the ai picks the 3 to 15 moments worth posting,
               reframes them to 9:16 around the people talking, and burns in the captions. ready for tiktok, reels and shorts in minutes.
             </p>
@@ -620,22 +620,22 @@ export default function Landing({ onLaunchApp }) {
               <span className="badge-ok whitespace-nowrap">
                 <Check size={12} /> no credit card required
               </span>
-              <span className="text-muted lowercase">first video free (up to 60 min) · then 20 min every month</span>
+              <span className="text-ink2 lowercase font-medium">first video free (up to 60 min) · then 20 min every month</span>
             </div>
 
-            <p className="text-sm text-muted lowercase">
-              <a href="#pricing" className="underline underline-offset-2 hover:text-ink">paid plans from $12/mo</a> without watermark. prefer to run it yourself?{' '}
+            <p className="text-sm text-ink2 lowercase">
+              <a href="#pricing" className="underline underline-offset-2 hover:text-ink font-medium">paid plans from $12/mo</a> without watermark. prefer to run it yourself?{' '}
               <a
                 href="https://github.com/mutonby/openshorts"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-ink2 underline hover:text-ink transition-colors"
+                className="text-ink2 underline hover:text-ink transition-colors font-medium"
               >
                 self-host free on github →
               </a>
             </p>
 
-            <p className="mt-4 text-sm text-muted lowercase">
+            <p className="mt-4 text-sm text-ink2 lowercase">
               works with links from{' '}
               {WORKS_WITH.map(([href, label], i) => (
                 <React.Fragment key={href}>
@@ -704,7 +704,7 @@ export default function Landing({ onLaunchApp }) {
               <div key={p.title} className="card p-6 flex flex-col">
                 <p.icon size={18} className="text-brass mb-4" />
                 <h3 className="font-display text-xl lowercase text-ink mb-2">{p.title}</h3>
-                <p className="text-muted text-sm leading-relaxed mb-4">{p.text}</p>
+                <p className="text-ink2 text-sm leading-relaxed mb-4">{p.text}</p>
                 <ul className="mt-auto space-y-1.5 text-sm lowercase">
                   {p.links.map(([href, label]) => (
                     <li key={href}><a href={href} className={LINK}>{label} →</a></li>
@@ -1153,7 +1153,7 @@ export default function Landing({ onLaunchApp }) {
       <section className="py-24 px-6 border-t border-rule">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="font-display text-4xl md:text-5xl lowercase text-ink tracking-tight mb-5">start creating viral videos today.</h2>
-          <p className="text-muted mb-10 max-w-xl mx-auto leading-relaxed lowercase">first video free (up to 60 min) · then 20 min/month · no credit card, or self-host it free with docker.</p>
+          <p className="text-ink2 mb-10 max-w-xl mx-auto leading-relaxed lowercase">first video free (up to 60 min) · then 20 min/month · no credit card, or self-host it free with docker.</p>
           <div className="flex flex-wrap items-center justify-center gap-4">
             {billingEnabled ? (
               <a href="#pricing" className="btn-primary whitespace-nowrap">
@@ -1183,7 +1183,7 @@ export default function Landing({ onLaunchApp }) {
       <form
         onSubmit={handleHeroSubmit}
         aria-hidden={!stickyCta}
-        className={`fixed z-40 bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-xl flex items-center gap-2 p-2 rounded-full border border-rule bg-paper2/95 backdrop-blur shadow-2xl transition-all duration-300 ${stickyCta ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6 pointer-events-none'}`}
+        className={`fixed z-40 bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-xl flex items-center gap-2 p-2 rounded-full border border-rule2 bg-paper2/95 backdrop-blur-md shadow-2xl transition-all duration-300 ${stickyCta ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6 pointer-events-none'}`}
       >
         <Link2 size={16} className="ml-3 text-muted shrink-0 hidden sm:block" />
         <input
@@ -1204,7 +1204,7 @@ export default function Landing({ onLaunchApp }) {
       <footer className="border-t border-rule py-16 px-6">
         <div className="max-w-6xl mx-auto">
           <p className="font-display text-3xl md:text-5xl lowercase text-ink tracking-tight mb-10">clip it before it scrolls past.</p>
-          <nav aria-label="Guides and comparisons" className="border-t border-rule pt-6 mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm lowercase text-muted">
+          <nav aria-label="Guides and comparisons" className="border-t border-rule pt-6 mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm lowercase text-ink2">
             <a href="/free-ai-clip-generator" className="hover:text-ink transition-colors">free ai clip generator</a>
             <a href="/tools" className="hover:text-ink transition-colors">free tools</a>
             <a href="/youtube-transcript-generator" className="hover:text-ink transition-colors">youtube transcript generator</a>
@@ -1249,9 +1249,9 @@ export default function Landing({ onLaunchApp }) {
           <div className="border-t border-rule pt-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <img src="/logo-openshorts.png" alt="OpenShorts" className="w-6 h-6" />
-              <span className="text-sm text-muted">OpenShorts — Free Open Source Clip Generator & AI UGC Video Creator</span>
+              <span className="text-sm text-ink2">OpenShorts — Free Open Source Clip Generator & AI UGC Video Creator</span>
             </div>
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm lowercase text-muted">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm lowercase text-ink2">
               <a href="https://github.com/mutonby/openshorts" target="_blank" rel="noopener noreferrer" className="hover:text-ink transition-colors">GitHub</a>
               <a href="#features" className="hover:text-ink transition-colors">Features</a>
               <a href="#faq" className="hover:text-ink transition-colors">FAQ</a>
