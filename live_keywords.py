@@ -2,7 +2,7 @@
 
 This module only decides WHEN a live moment is worth sending to the clip
 pipeline. It never rates anything: a hit is a fact (a word was said), not a
-score. Gemini rates the moment (predicted_score) and decides the clip.
+score. the AI model rates the moment (predicted_score) and decides the clip.
 
 Text is normalized before matching: lower case, accents removed, curly
 apostrophes removed, so "vitória", "Vitoria" and "VITÓRIA" are one word.
@@ -16,7 +16,7 @@ import re
 import unicodedata
 from typing import Dict, Iterable, List
 
-# Clip requests. Strong: one hit is enough to ask Gemini.
+# Clip requests. Strong: one hit is enough to ask the AI model.
 CLIP_REQUEST = [
     "clip", "clip that", "clip it", "clip this", "clipa", "clipar", "clipa isso", "clipa essa",
     "clipa aquilo", "clipar isso", "clipe", "faz o clipe", "cria o clipe", "corta isso",

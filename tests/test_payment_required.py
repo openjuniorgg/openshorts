@@ -32,5 +32,5 @@ def test_402_has_link_in_field_and_message(monkeypatch):
 def test_no_plan_error_carries_the_link(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setattr(app, "BILLING_ENABLED", True)
-    d = app.gemini_missing_error().detail
+    d = app.ai_key_missing_error().detail
     assert d["error"] == "no_plan" and d["upgrade_url"] in d["message"]

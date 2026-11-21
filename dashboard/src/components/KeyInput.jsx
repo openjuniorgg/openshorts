@@ -23,7 +23,7 @@ export default function KeyInput({ onKeySet, savedKey }) {
                 <div className="p-2 bg-paper3 border border-rule rounded-input text-brass">
                     <Key size={18} />
                 </div>
-                <h2 className="font-display lowercase text-lg text-ink">Gemini API Key</h2>
+                <h2 className="font-display lowercase text-lg text-ink">OpenRouter API Key</h2>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
@@ -35,7 +35,7 @@ export default function KeyInput({ onKeySet, savedKey }) {
                             setKey(e.target.value);
                             setIsSaved(false);
                         }}
-                        placeholder="AIzaSy..."
+                        placeholder="sk-or-..."
                         className="input-field pr-12 font-mono"
                     />
                     <button
@@ -57,13 +57,15 @@ export default function KeyInput({ onKeySet, savedKey }) {
                 Your key is stored locally in your browser for convenience.
                 <br />
                 <a
-                    href="https://aistudio.google.com/app/apikey"
+                    href="https://openrouter.ai/keys"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-brass font-medium hover:underline mt-1 inline-block"
                 >
-                    Get your free Gemini API Key here →
+                    Get an OpenRouter API key here →
                 </a>
+                <br />
+                Want a model on your own machine instead? Choose Ollama above: no key is needed.
             </p>
         </div>
     );

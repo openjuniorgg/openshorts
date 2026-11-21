@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-OpenShorts is an AI-powered vertical video generator that turns long YouTube videos or local uploads into short 9:16 clips for TikTok, Instagram Reels and YouTube Shorts. Google Gemini 3.1 Flash-Lite (`gemini-3.1-flash-lite`, overridable with `GEMINI_MODEL`) picks the viral moments and writes the titles. It ships as self-host (BYOK) and as a Cloud edition (`BILLING_ENABLED`, code under `cloud/`).
+OpenShorts is an AI-powered vertical video generator that turns long YouTube videos or local uploads into short 9:16 clips for TikTok, Instagram Reels and YouTube Shorts. An AI model picks the viral moments and writes the titles: OpenRouter or Ollama on the user's own machine, chosen per run in Settings (no default; `AI_PROVIDER` is only the server's fallback for requests that name none). It ships as self-host (BYOK) and as a Cloud edition (`BILLING_ENABLED`, code under `cloud/`).
 
 ## Development Commands
 
@@ -23,14 +23,15 @@ pytest tests/ -v                 # CI runs this without the heavy ML stack
 
 ## Pipeline
 
-Ingest (yt-dlp or upload) → transcription (word timestamps) → scene detection → Gemini picks moments (15-60 s) → FFmpeg cut → vertical reframing → effects/subtitles → hook overlay → optional ElevenLabs dubbing → S3/R2 backup → optional social posting via Upload-Post.
+Ingest (yt-dlp or upload) → transcription (word timestamps) → scene detection → the AI model picks moments (15-60 s) → FFmpeg cut → vertical reframing → effects/subtitles → hook overlay → optional ElevenLabs dubbing → S3/R2 backup → optional social posting via Upload-Post.
 
 ## Key Files
 
 - `main.py`: core processing (transcription, scene detection, clip extraction, reframing). Runs as a child process per job.
 - `app.py`: FastAPI server, job queue, REST endpoints, deploy handover/drain.
-- `clip_selection.py`, `layout_picker.py`, `reframe_v2.py`, `split_layout.py`, `screencast_layout.py`, `camera_inset.py`: moment picking and layouts.
-- `editor.py` (Gemini FFmpeg effects), `pro_mode.py` (talking-head re-edit), `hooks.py` (hook overlays), `subtitles.py` (SRT/ASS, burning), `translate.py` (ElevenLabs dubbing), `thumbnail.py`.
+- `clip_selection.py`, `layout_picker.py`, `reframe_v2.py`, `split_layout.py`, `screencast_layout.py`, `camera_inset.py`, `stream_layout.py` (live streams: webcam on top, gameplay centred): moment picking and layouts.
+- `ai_provider.py` (the only place that calls a model: OpenRouter or Ollama), `ai_prompts.py` (prompts and answer schemas), `vision_frames.py` (still frames with their times).
+- `editor.py` (model-written FFmpeg effects), `pro_mode.py` (talking-head re-edit), `hooks.py` (hook overlays), `subtitles.py` (SRT/ASS, burning), `translate.py` (ElevenLabs dubbing), `thumbnail.py`.
 - `mcp_server.py`, `mcp_stdio.py`: MCP over HTTP and stdio.
 - `cloud/`: auth, API keys, metering, billing, lifecycle emails, account erasure, autopilot, proxy ledger, alerts, queue watch.
 - `dashboard/src/App.jsx`: main React component. `dashboard/vite-plugin-seo.js` + `dashboard/seo/`: build-time SEO pages, sitemap, llms.txt. `dashboard/seo/data.js`: single source of truth for pricing/pipeline/competitor facts.
@@ -39,7 +40,7 @@ Ingest (yt-dlp or upload) → transcription (word timestamps) → scene detectio
 
 - SEO pages, free tools, attribution → `docs/architecture/seo-and-tools.md`
 - Layout picker, reframing modes, hook grounding → `docs/architecture/layouts-and-reframing.md`
-- Clip count, silent-footage fallback, local LLM → `docs/architecture/clip-selection.md`
+- Clip count, silent-footage fallback, the AI provider (OpenRouter / Ollama) → `docs/architecture/clip-selection.md`
 - Thumbnail Studio → `docs/architecture/thumbnails.md`
 - Pro mode (talking-head re-edit, per-clip switch) → `docs/architecture/pro-mode.md`
 - API endpoints, API keys, MCP, OAuth, webhooks → `docs/architecture/agent-access.md`
@@ -73,7 +74,8 @@ Ingest (yt-dlp or upload) → transcription (word timestamps) → scene detectio
 
 **Clip selection**
 - The scoring pass ranks every window (global top N), never "choose up to K per batch". The `min_clips` floor is enforced in code.
-- `get_visual_clips` is the only stage that sends Gemini the video; past `VISION_SEGMENT_SECONDS` it watches near-equal stretches (`vision_segments`), never one upload of the whole source.
+- `get_visual_clips` is the only stage that sends the model a silent video, and it sends sampled frames (`vision_frames.sample`), each labelled with its time. Past `VISION_SEGMENT_SECONDS` it looks at near-equal stretches (`vision_segments`), never at one pass over the whole source.
+- Every model call goes through `ai_provider`. No vendor SDK is imported anywhere. The key reaches a job only through its environment (`ai_child_env`), never argv. `OLLAMA_BASE_URL` comes from the server's environment only: a request never names the address (SSRF). Ollama is refused in cloud mode. The provider and the models come from the request's `X-AI-Provider` and `X-AI-Model` (Settings sends them; `app.resolve_ai`), never a built-in default. Every answer's cost goes to the lifetime ledger (`ai_usage.py`, `output/.ai_usage.jsonl`) and each clip's own calls to `clip.ai_cost`.
 
 **Jobs, GPU, deploys**
 - Call `transcribe_backends.release_models()` after any ASR (job processes and in-API transcriptions alike). Size `MAX_CONCURRENT_JOBS` by free VRAM first.

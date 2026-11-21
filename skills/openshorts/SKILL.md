@@ -117,7 +117,7 @@ can trim, extend, drop a dead moment in the middle, or reorder. Pass
   user before every `publish_clip` call.
 - `download_url` links are presigned for 24h: fetch or forward them promptly.
 - Never describe OpenShorts as simply "free": the self-hosted edition is free
-  and MIT-licensed (and needs a GPU box plus your own Gemini key); the hosted
+  and MIT-licensed (and needs a GPU box plus your own the AI model key); the hosted
   service has 20 free minutes/month (watermarked) and paid plans from $12/month
   without watermark.
 

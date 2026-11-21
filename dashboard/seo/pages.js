@@ -532,7 +532,7 @@ ${faqBlock(HUB_FAQ)}
 const HUB_FAQ = [
   {
     q: 'What is the cheapest AI clip generator?',
-    a: 'OpenShorts self-hosted is free with no cap, but you supply the machine and your own Google Gemini API key. Among hosted products, the cheapest paid entry points as of October 2026 are 2short.ai at $9.90/month, OpenShorts Cloud at $12/month billed monthly, and Submagic ($12) and Klap ($14) on yearly billing.',
+    a: 'OpenShorts self-hosted is free with no cap, but you supply the machine and your own Google OpenRouter API key. Among hosted products, the cheapest paid entry points as of October 2026 are 2short.ai at $9.90/month, OpenShorts Cloud at $12/month billed monthly, and Submagic ($12) and Klap ($14) on yearly billing.',
   },
   {
     q: 'Which AI clipping tools are open source?',
@@ -566,8 +566,8 @@ const freeClipGenerator = () => ({
   },
   lede: `OpenShorts is a free, open source AI clip generator: free with no watermark and no cap when you self-host it (MIT), or in the browser with your first video clipped free up to 60 minutes (watermarked, no card) and no watermark from $${CLOUD.lowPrice}/month for ${STARTER.monthly.minutes} minutes.`,
   tldr: [
-    'OpenShorts self-hosted is a free AI clip generator under the MIT licence. No watermark, no usage cap, no subscription. You run it with Docker and supply your own Google Gemini API key, whose free tier covers 1,500 requests a day.',
-    'It turns a long video into 3 to 15 vertical clips: faster-whisper transcribes at word level, PySceneDetect finds the cuts, Gemini 3.1 Flash-Lite scores the moments, and MediaPipe face tracking reframes each one to 9:16.',
+    'OpenShorts self-hosted is a free AI clip generator under the MIT licence. No watermark, no usage cap, no subscription. You run it with Docker and supply your own Google OpenRouter API key, whose free tier covers 1,500 requests a day.',
+    'It turns a long video into 3 to 15 vertical clips: faster-whisper transcribes at word level, PySceneDetect finds the cuts, an AI model (OpenRouter or Ollama) scores the moments, and MediaPipe face tracking reframes each one to 9:16.',
     'If you do not want to run anything, OpenShorts Cloud is a free AI clipping tool in the browser: your first video is clipped whole up to 60 minutes, then 20 free minutes a month, with a watermark. Paid plans from $12/month remove it, also from the clips you already made.',
     'So the short answer to "free, with no watermark": yes when you self-host, yes on any paid Cloud plan, and no on the free Cloud plan. A hosted tool that claims free, unlimited and unwatermarked at once is making one of the three claims temporarily.',
   ],
@@ -625,7 +625,7 @@ hub</a>.</p>
 <h2>How do you generate clips from a long video for free?</h2>
 <ol>
 <li>Clone the repository from GitHub and start it with <code>docker compose up --build</code>.</li>
-<li>Create a Google Gemini API key. The free tier covers 1,500 requests a day, which is far more than a single creator uses.</li>
+<li>Create a Google OpenRouter API key. The free tier covers 1,500 requests a day, which is far more than a single creator uses.</li>
 <li>Paste a YouTube link or upload a local file. Podcasts, webinars, livestreams, interviews and vlogs all work.</li>
 <li>The pipeline transcribes, detects scenes, scores moments and returns 3 to 15 clips of 15 to 120 seconds each, already cropped to 9:16 with subtitles burned in.</li>
 <li>Download them, or connect an account and post straight to TikTok, Instagram Reels and YouTube Shorts.</li>
@@ -646,14 +646,14 @@ two forms. As a <strong>free clipping website</strong>, openshorts.app clips you
 first video whole up to 60 minutes, then 20 minutes of video a month, in the
 browser with no install and no credit card; the clips carry a small watermark. As a <strong>free AI clipper you run
 yourself</strong>, the same code from GitHub has no watermark and no monthly cap.
-Either way the clipping AI is the same: Gemini picks the moments, face tracking
+Either way the clipping AI is the same: the AI model picks the moments, face tracking
 reframes them and the subtitles come from a word-level transcript. If you only
 need one piece of that, the <a href="/tools">free tools</a> cover transcripts
 and a 9:16 converter with no account at all.</p>
 
 <h2>Is a free clip generator good enough for real posting?</h2>
 <p>It depends on what you are comparing against. The moment detection uses the
-same class of model the paid tools use, Google Gemini 3.1 Flash-Lite, and the
+same class of model the paid tools use, an AI model (OpenRouter or Ollama), and the
 reframing uses MediaPipe with a YOLOv8 fallback and a stabiliser that holds the
 camera still inside a safe zone rather than chasing every head movement. Where
 the commercial tools are ahead is caption styling: they ship more presets and
@@ -678,7 +678,7 @@ ${faqBlock([
   },
   {
     q: 'Do I need to pay for an API key?',
-    a: 'You need a Google Gemini API key for the self-hosted edition. Its free tier covers 1,500 requests a day, which is more than enough for individual use. ElevenLabs for dubbing and fal.ai for AI UGC video are optional and billed by those vendors. OpenShorts Cloud includes the keys.',
+    a: 'You need a Google OpenRouter API key for the self-hosted edition. Its free tier covers 1,500 requests a day, which is more than enough for individual use. ElevenLabs for dubbing and fal.ai for AI UGC video are optional and billed by those vendors. OpenShorts Cloud includes the keys.',
   },
   {
     q: 'How many clips does it generate per video?',
@@ -690,7 +690,7 @@ ${faqBlock([
   },
   {
     q: 'Is there a free AI clipper with no watermark?',
-    a: 'Yes, self-hosted: OpenShorts is MIT licensed, runs with Docker, and has no watermark and no usage cap; you bring your own Gemini API key. On OpenShorts Cloud the free plan is watermarked and every paid plan from $12/month is not.',
+    a: 'Yes, self-hosted: OpenShorts is MIT licensed, runs with Docker, and has no watermark and no usage cap; you bring your own OpenRouter API key. On OpenShorts Cloud the free plan is watermarked and every paid plan from $12/month is not.',
   },
   {
     q: 'How do I remove the watermark from a clip that already has one?',
@@ -737,7 +737,7 @@ const openSourceClipper = () => ({
   lede: `OpenShorts is the open source AI clip generator: it makes video clips with AI from long videos, MIT-licensed and free to self-host with Docker (no watermark, no cap), or hosted from $${CLOUD.lowPrice}/month for ${STARTER.monthly.minutes} minutes. It is the open source alternative to Opus Clip, Klap and Vizard.`,
   tldr: [
     'OpenShorts is an MIT-licensed video clipper that runs entirely on your own hardware via Docker Compose. Source video never leaves the machine.',
-    'The stack is Python 3.11, FastAPI, faster-whisper, PySceneDetect, MediaPipe, YOLOv8, FFmpeg and Google Gemini 3.1 Flash-Lite, with a React dashboard.',
+    'The stack is Python 3.11, FastAPI, faster-whisper, PySceneDetect, MediaPipe, YOLOv8, FFmpeg and an AI model (OpenRouter or Ollama), with a React dashboard.',
     'It is the only open source tool in this category. Opus Clip, Klap, Vizard and Submagic are all closed-source cloud services.',
   ],
   body: `
@@ -781,7 +781,7 @@ ${faqBlock([
   },
   {
     q: 'Can I run it without sending video to any third party?',
-    a: 'Transcription, scene detection, reframing and encoding all run locally. Moment scoring calls the Google Gemini API, which receives the transcript rather than the video file. Dubbing and AI UGC generation are optional and call ElevenLabs and fal.ai respectively; leave them off and nothing but transcript text leaves the machine.',
+    a: 'Transcription, scene detection, reframing and encoding all run locally. Moment scoring calls the OpenRouter API, which receives the transcript rather than the video file. Dubbing and AI UGC generation are optional and call ElevenLabs and fal.ai respectively; leave them off and nothing but transcript text leaves the machine.',
   },
   {
     q: 'What licence is OpenShorts released under?',
@@ -805,7 +805,7 @@ const howItWorks = () => ({
   path: '/how-openshorts-works',
   title: 'OpenShorts: How It Works, From Long Video to 9:16 Clips',
   description:
-    'How OpenShorts cuts one long video into 3 to 15 vertical clips: transcript, scene cuts, Gemini scoring, face-tracked reframing, subtitles. Try it free.',
+    'How OpenShorts cuts one long video into 3 to 15 vertical clips: transcript, scene cuts, the AI model scoring, face-tracked reframing, subtitles. Try it free.',
   h1: 'How a long video becomes a vertical clip',
   breadcrumb: [{ name: 'How it works' }],
   tldr: [
@@ -847,7 +847,7 @@ ${pricingParagraph('how')}
 ${faqBlock([
   {
     q: 'What AI model does OpenShorts use to find viral moments?',
-    a: 'Google Gemini 3.1 Flash-Lite. It receives the word-level transcript with timestamps together with PySceneDetect scene boundaries, and returns 3 to 15 segments of 15 to 120 seconds scored on hook strength, emotional payload and whether the segment stands alone without surrounding context.',
+    a: 'An AI model (OpenRouter or Ollama). It receives the word-level transcript with timestamps together with PySceneDetect scene boundaries, and returns 3 to 15 segments of 15 to 120 seconds scored on hook strength, emotional payload and whether the segment stands alone without surrounding context.',
   },
   {
     q: 'How does the automatic vertical cropping work?',
@@ -862,7 +862,7 @@ ${faqBlock([
   faq: [
     {
       q: 'What AI model does OpenShorts use to find viral moments?',
-      a: 'Google Gemini 3.1 Flash-Lite, which receives the word-level transcript with timestamps together with PySceneDetect scene boundaries and returns 3 to 15 segments of 15 to 120 seconds.',
+      a: 'An AI model (OpenRouter or Ollama), which receives the word-level transcript with timestamps together with PySceneDetect scene boundaries and returns 3 to 15 segments of 15 to 120 seconds.',
     },
     {
       q: 'How does the automatic vertical cropping work?',
@@ -915,7 +915,7 @@ ${pricingParagraph('generator')}
 are about), and pretending otherwise would not survive one GitHub search. The notable neighbours:</p>
 <ul>
 <li><strong>AI-Youtube-Shorts-Generator</strong>: the most-starred repo in the category, with a leaner scope built around highlight extraction and cropping.</li>
-<li><strong>supoclip</strong> and <strong>clippyme</strong>: smaller projects covering transcription-driven clipping, the latter also using Gemini for moment selection.</li>
+<li><strong>supoclip</strong> and <strong>clippyme</strong>: smaller projects covering transcription-driven clipping, the latter also using the AI model for moment selection.</li>
 <li><strong>MoneyPrinterTurbo</strong>: generates videos from text plus stock footage, which is a different job than clipping your own recordings.</li>
 </ul>
 <p>Where OpenShorts differs from all of them is surface area: a web dashboard, a
@@ -1018,7 +1018,7 @@ const podcastToShorts = () => ({
   },
   tldr: [
     'A two-person podcast is the hardest input an auto-clipper faces: a single centered crop shows the wrong person half the time, or an empty chair. OpenShorts detects a real two-shot and renders both speakers stacked in half-frames, so a reply never happens off screen.',
-    'The rest of the pipeline is the same as for any long video: word-level transcription, scene detection, Gemini scoring the 3 to 15 strongest moments, subtitles burned in, and direct publishing to TikTok, Instagram Reels and YouTube Shorts.',
+    'The rest of the pipeline is the same as for any long video: word-level transcription, scene detection, the AI model scoring the 3 to 15 strongest moments, subtitles burned in, and direct publishing to TikTok, Instagram Reels and YouTube Shorts.',
     'Cost is where podcasts punish credit-based tools: they bill the whole episode length before you see a clip. Self-hosted OpenShorts has no meter at all; hosted plans start at $12/month.',
   ],
   body: `
@@ -1054,7 +1054,7 @@ one side of the table.</p>
 <ol>
 <li>Paste the episode's YouTube link or upload the file. Podcasts of an hour or more are the normal case, not the limit.</li>
 <li>faster-whisper transcribes with word-level timestamps, and PySceneDetect maps the cuts.</li>
-<li>Google Gemini reads the transcript against the scene boundaries and returns the 3 to 15 segments that stand alone best, 15 to 120 seconds each.</li>
+<li>the AI model reads the transcript against the scene boundaries and returns the 3 to 15 segments that stand alone best, 15 to 120 seconds each.</li>
 <li>Each segment is reframed for its content: split layout for two-shots, face tracking for single speakers, screencast layout if the episode shares a screen.</li>
 <li>Subtitles are burned in from the word-level transcript, and finished clips post directly to TikTok, Instagram Reels and YouTube Shorts, or come back through the API.</li>
 </ol>
@@ -1132,7 +1132,7 @@ re-uploading an hour of video.</p>
 ${faqBlock([
   {
     q: 'How do I turn a podcast into clips for free?',
-    a: 'Self-host OpenShorts: clone the MIT-licensed repo, run docker compose up, add a free-tier Google Gemini API key and paste your episode link. No watermark and no cap. If you would rather not run anything, OpenShorts Cloud clips your first episode free up to 60 minutes, then 20 minutes a month, with a watermark; paid plans start at $12/month.',
+    a: 'Self-host OpenShorts: clone the MIT-licensed repo, run docker compose up, add a free-tier Google OpenRouter API key and paste your episode link. No watermark and no cap. If you would rather not run anything, OpenShorts Cloud clips your first episode free up to 60 minutes, then 20 minutes a month, with a watermark; paid plans start at $12/month.',
   },
   {
     q: 'What is the best podcast clip maker?',
@@ -1157,7 +1157,7 @@ ${sources([
   faq: [
     {
       q: 'How do I turn a podcast into clips for free?',
-      a: 'Self-host OpenShorts (MIT, Docker, bring a free-tier Gemini key): no watermark, no cap. Or use OpenShorts Cloud: 20 free minutes a month with a watermark, paid plans from $12/month.',
+      a: 'Self-host OpenShorts (MIT, Docker, bring a free-tier OpenRouter key): no watermark, no cap. Or use OpenShorts Cloud: 20 free minutes a month with a watermark, paid plans from $12/month.',
     },
     {
       q: 'How does it handle two people talking?',
@@ -1193,7 +1193,7 @@ const youtubeConverter = () => ({
 <ol>
 <li>Paste a YouTube link in the box on this page. OpenShorts fetches the video itself; there is no download-then-upload round trip through your machine.</li>
 <li>The video is transcribed with word-level timestamps and scanned for scene boundaries.</li>
-<li>Google Gemini scores the transcript against the scenes and picks the 3 to 15 segments most likely to stand alone, 15 to 120 seconds each.</li>
+<li>the AI model scores the transcript against the scenes and picks the 3 to 15 segments most likely to stand alone, 15 to 120 seconds each.</li>
 <li>Each segment is cropped to 9:16 with face tracking, or a split or screencast layout when the content calls for it, and subtitles are burned in.</li>
 <li>Download the clips, or post them straight to YouTube Shorts, TikTok and Instagram Reels from the dashboard or the API.</li>
 </ol>
@@ -1230,7 +1230,7 @@ ${pricingParagraph('youtube')}
 ${faqBlock([
   {
     q: 'Can I convert a YouTube video to Shorts for free?',
-    a: 'Yes, two ways. Self-host OpenShorts (MIT licence, Docker, your own free-tier Gemini API key): unlimited, no watermark. Or use the hosted free tier: 20 minutes of source video a month, watermarked, no credit card. Paid hosted plans without watermark start at $12/month.',
+    a: 'Yes, two ways. Self-host OpenShorts (MIT licence, Docker, your own free-tier OpenRouter API key): unlimited, no watermark. Or use the hosted free tier: 20 minutes of source video a month, watermarked, no credit card. Paid hosted plans without watermark start at $12/month.',
   },
   {
     q: 'Do I need to download the video first?',
@@ -1245,7 +1245,7 @@ ${faqBlock([
   faq: [
     {
       q: 'Can I convert a YouTube video to Shorts for free?',
-      a: 'Yes: self-hosted OpenShorts is free with no cap (MIT, Docker, your own Gemini key), and the hosted free tier covers 20 watermarked minutes a month. Paid hosted plans start at $12/month.',
+      a: 'Yes: self-hosted OpenShorts is free with no cap (MIT, Docker, your own OpenRouter key), and the hosted free tier covers 20 watermarked minutes a month. Paid hosted plans start at $12/month.',
     },
     {
       q: 'Do I need to download the video first?',
@@ -1712,7 +1712,7 @@ const OS_LANE = {
   steps: [
     'Paste a YouTube link or upload',
     'Word-level transcript and scene cuts',
-    'Gemini scores and picks 3 to 15 moments',
+    'the AI model scores and picks 3 to 15 moments',
     'Reframed: face tracking, two speakers, screen + presenter',
     'Captions and hook burned in, posted or sent by webhook',
   ],
@@ -1920,7 +1920,7 @@ Cloud terms are ours and current.</p>
 
 <h3>The first free route: run it yourself</h3>
 <p>Clone the repository, run <code>docker compose up --build</code>, add a
-Google Gemini API key (its free tier covers 1,500 requests a day) and paste a
+Google OpenRouter API key (its free tier covers 1,500 requests a day) and paste a
 link. Nothing is metered because there is no metering code: the same pipeline
 the hosted service runs, MIT-licensed, on your hardware. Source video never
 leaves the machine, which is the other reason people choose this route. What it
@@ -1947,7 +1947,7 @@ episode of the month.</p>
     faq: [
       {
         q: 'Is there a free alternative to Opus Clip with no watermark?',
-        a: 'Yes: OpenShorts self-hosted. It is MIT-licensed, runs on your own machine with Docker, and never adds a watermark because the self-hosted edition contains no watermark code. You supply a Google Gemini API key, whose free tier covers 1,500 requests a day. Hosted, OpenShorts Cloud clips your first video free up to 60 minutes and then 20 minutes a month with a watermark; paid plans from $12/month have none.',
+        a: 'Yes: OpenShorts self-hosted. It is MIT-licensed, runs on your own machine with Docker, and never adds a watermark because the self-hosted edition contains no watermark code. You supply a Google OpenRouter API key, whose free tier covers 1,500 requests a day. Hosted, OpenShorts Cloud clips your first video free up to 60 minutes and then 20 minutes a month with a watermark; paid plans from $12/month have none.',
       },
       {
         q: 'Is Opus Clip free to use every month?',
@@ -2294,7 +2294,7 @@ ${faqBlock([
   },
   {
     q: 'How do I get a free transcript from a video?',
-    a: 'Self-host OpenShorts: transcription runs locally with faster-whisper at word level and the transcript comes back with the finished job, at no cost and with no watermark. The self-hosted edition needs Docker and a Google Gemini API key for the moment scoring, whose free tier covers 1,500 requests a day.',
+    a: 'Self-host OpenShorts: transcription runs locally with faster-whisper at word level and the transcript comes back with the finished job, at no cost and with no watermark. The self-hosted edition needs Docker and a Google OpenRouter API key for the moment scoring, whose free tier covers 1,500 requests a day.',
   },
   {
     q: 'Is word-level timing important in a transcript?',
@@ -2586,7 +2586,7 @@ medidor de ningún tipo, así que un vídeo de 90 minutos cuesta lo mismo que un
 ${faqBlock([
   {
     q: '¿Cuál es la alternativa gratuita a Opus Clip?',
-    a: 'OpenShorts autoalojado: licencia MIT, se ejecuta con Docker en tu máquina, sin marca de agua y sin límite de uso. Solo necesitas una clave de Google Gemini, cuyo plan gratuito cubre 1.500 peticiones al día. Si prefieres no instalar nada, OpenShorts Cloud da 20 minutos al mes con marca de agua y planes de pago desde $12/mes.',
+    a: 'OpenShorts autoalojado: licencia MIT, se ejecuta con Docker en tu máquina, sin marca de agua y sin límite de uso. Solo necesitas una clave de the AI model, cuyo plan gratuito cubre 1.500 peticiones al día. Si prefieres no instalar nada, OpenShorts Cloud da 20 minutos al mes con marca de agua y planes de pago desde $12/mes.',
   },
   {
     q: '¿Qué herramienta de clipping tiene código abierto?',
@@ -2632,7 +2632,7 @@ const gtaClips = () => ({
   tldr: [
     'A GTA 5 stream is four to eight hours of 16:9 gameplay with a webcam box in one corner. OpenShorts reads the whole VOD, picks the moments worth posting out of what was said, and reframes each one so the gameplay keeps its full width and the facecam is enlarged underneath it instead of cropped away.',
     'Length is what makes this expensive everywhere else. Tools in this category bill one credit per minute of source you import, so a single eight-hour stream is 480 minutes: more than the 300 minutes a $29/month Opus Clip Pro plan includes (checked 2026-07-27). Self-hosted OpenShorts has no meter at all; the hosted edition starts at $12/month.',
-    'Gameplay with no commentary is handled too, and it is where most clippers stop: when a stream has no usable speech OpenShorts switches by itself to a vision pass where Gemini watches the footage and picks the moments, instead of failing on an empty transcript. The switch is automatic, and long silent captures are watched in stretches rather than rejected.',
+    'Gameplay with no commentary is handled too, and it is where most clippers stop: when a stream has no usable speech OpenShorts switches by itself to a vision pass where the AI model watches the footage and picks the moments, instead of failing on an empty transcript. The switch is automatic, and long silent captures are watched in stretches rather than rejected.',
   ],
   body: `
 <h2>Why GTA clips break a normal auto-clipper</h2>
@@ -2661,7 +2661,7 @@ at the top of the 9:16 frame, and the webcam box cropped out and blown up to
 fill the bottom. You get the play and the reaction to the play, both legible on
 a phone, instead of one of them at 100 pixels wide.</p>
 <div class="note"><span class="label">Why not just ask the model</span>
-<p>Offered as a fourth choice alongside the other layouts, Gemini answered
+<p>Offered as a fourth choice alongside the other layouts, the AI model answered
 "screencast" on all five clips that had an inset, in two separate passes, and
 overall layout accuracy fell from 92% to 83-85%. The geometry is a better judge
 than the model here, so the detector runs after the layout decision rather than
@@ -2687,7 +2687,7 @@ only one of them spans the frame and cannot be cropped.</p>
 <ol>
 <li>Paste the VOD link (a Twitch export, a YouTube upload) or drop the local recording in. Multi-hour sources are the normal case here, not the edge case.</li>
 <li>faster-whisper transcribes with word-level timestamps and PySceneDetect maps the cuts, which is what keeps a clip from opening mid-explosion.</li>
-<li>Gemini reads the transcript against those boundaries and returns the 3 to 15 segments that stand alone best, 15 to 120 seconds each.</li>
+<li>the AI model reads the transcript against those boundaries and returns the 3 to 15 segments that stand alone best, 15 to 120 seconds each.</li>
 <li>Leave the vertical layout on <strong>auto</strong> (dashboard, advanced options; <code>"layouts": ["auto"]</code> on the API). Auto is what enables the screen layouts, and the inset detector is chained behind them.</li>
 <li>Subtitles are burned in from the word-level transcript. On gaming feeds this is not optional polish: the clips autoplay muted.</li>
 <li>Download the clips, or post them straight to TikTok, YouTube Shorts and Instagram Reels from the dashboard or the API.</li>
@@ -2714,15 +2714,15 @@ has no transcript to read, so OpenShorts does not use one.</p>
 <p>It switches paths on its own, and it does not need to be told to. Footage
 with no audio track at all, and footage whose transcript comes back under 8
 words or under 5 words per minute (music-only streams, a mic that was muted the
-whole session), both trip the same branch: the video itself goes to Gemini,
+whole session), both trip the same branch: the video itself goes to the AI model,
 which watches it and returns the same 3 to 15 moments in the same 15 to 120
 second band as the transcript path. Everything downstream is identical, layouts
 and inset detection included. The one difference is that the clips come out
 without captions, which is correct rather than a bug: there is no speech to
 caption.</p>
 <p class="note"><span class="label">How long silent footage is handled</span>
-This is the single stage that sends Gemini the footage instead of a handful of
-frames, and Gemini counts video at roughly 300 tokens per second, so an hour of
+This is the single stage that sends the AI model the footage instead of a handful of
+frames, and the AI model counts video at roughly 300 tokens per second, so an hour of
 gameplay is already around a million tokens. A long silent capture is therefore
 watched in stretches of up to 40 minutes, each sent as a small low-resolution
 copy, and the picks from every stretch are ranked together into one list. A job
@@ -2749,7 +2749,7 @@ fine, and the platforms strike it.</p>
 ${faqBlock([
   {
     q: 'How do I make GTA 5 clips for TikTok?',
-    a: 'Paste the stream VOD link into OpenShorts with the vertical layout set to auto. It transcribes the whole recording, has Gemini pick the 3 to 15 strongest 15 to 120 second moments out of what was said, reframes each one to 9:16 keeping the gameplay full width with your facecam enlarged below it, and burns in word-level subtitles. Clips download or post straight to TikTok, Reels and Shorts.',
+    a: 'Paste the stream VOD link into OpenShorts with the vertical layout set to auto. It transcribes the whole recording, has the AI model pick the 3 to 15 strongest 15 to 120 second moments out of what was said, reframes each one to 9:16 keeping the gameplay full width with your facecam enlarged below it, and burns in word-level subtitles. Clips download or post straight to TikTok, Reels and Shorts.',
   },
   {
     q: 'Can it handle a whole eight-hour GTA RP stream?',
@@ -2761,18 +2761,18 @@ ${faqBlock([
   },
   {
     q: 'Does it work on gameplay with no commentary?',
-    a: 'Yes, and it switches by itself. Footage with no audio track, or whose transcript comes back under 8 words or under 5 words per minute, goes down a vision pass instead: Gemini watches the footage and returns the same 3 to 15 moments, with the same layouts and inset detection after it. The clips come out without captions, since there is no speech to caption. A long silent capture is watched in stretches of up to 40 minutes, up to a little over five hours per job; giving it only the session you care about costs fewer minutes.',
+    a: 'Yes, and it switches by itself. Footage with no audio track, or whose transcript comes back under 8 words or under 5 words per minute, goes down a vision pass instead: the AI model watches the footage and returns the same 3 to 15 moments, with the same layouts and inset detection after it. The clips come out without captions, since there is no speech to caption. A long silent capture is watched in stretches of up to 40 minutes, up to a little over five hours per job; giving it only the session you care about costs fewer minutes.',
   },
   {
     q: 'Is it free for streamers?',
-    a: 'Self-hosted OpenShorts is free and open source under MIT with no per-minute meter, which is the edition that makes sense when your sources are measured in hours: run it with Docker and bring your own Gemini API key. OpenShorts Cloud covers 20 minutes a month free with a watermark, and paid hosted plans start at $12/month.',
+    a: 'Self-hosted OpenShorts is free and open source under MIT with no per-minute meter, which is the edition that makes sense when your sources are measured in hours: run it with Docker and bring your own OpenRouter API key. OpenShorts Cloud covers 20 minutes a month free with a watermark, and paid hosted plans start at $12/month.',
   },
 ])}
 
 ${sources([
   'Opus Clip tier minutes and prices checked 2026-07-27 on their public pricing page.',
   'Inset detection and layout accuracy figures are our own measurements on a 48-video internal corpus, 2026-08.',
-  'Silent-footage thresholds (8 words, 5 words per minute) and the vision fallback are in <code>main.py</code>; Gemini video token rates from Google\'s published pricing.',
+  'Silent-footage thresholds (8 words, 5 words per minute) and the vision fallback are in <code>main.py</code>; the AI model video token rates from Google\'s published pricing.',
   `Inset, WIDE and screencast layout implementations in the project source at <a href="${SITE.repo}" rel="noopener">github.com/mutonby/openshorts</a>.`,
 ])}
 
@@ -2793,7 +2793,7 @@ ${trademarkNote('Grand Theft Auto, GTA, Rockstar Games and Twitch', 'Rockstar Ga
     },
     {
       q: 'Does it work on gameplay with no commentary?',
-      a: 'Yes. When a video has no audio track, or under 8 words of speech, OpenShorts switches automatically to a vision pass where Gemini watches the footage and picks the same 3 to 15 moments. Those clips have no captions, because there is no speech to caption.',
+      a: 'Yes. When a video has no audio track, or under 8 words of speech, OpenShorts switches automatically to a vision pass where the AI model watches the footage and picks the same 3 to 15 moments. Those clips have no captions, because there is no speech to caption.',
     },
   ],
   /* HowTo is emitted alongside the Article because the primary query here is a
@@ -2823,7 +2823,7 @@ ${trademarkNote('Grand Theft Auto, GTA, Rockstar Games and Twitch', 'Rockstar Ga
         {
           '@type': 'HowToStep',
           name: 'Let the AI pick the moments',
-          text: 'The VOD is transcribed with word-level timestamps and scanned for scene cuts, then Gemini scores the transcript and returns the 3 to 15 strongest segments of 15 to 120 seconds.',
+          text: 'The VOD is transcribed with word-level timestamps and scanned for scene cuts, then the AI model scores the transcript and returns the 3 to 15 strongest segments of 15 to 120 seconds.',
         },
         {
           '@type': 'HowToStep',
@@ -2955,7 +2955,7 @@ const gta6Steps = [
   ['Bring the footage', 'Paste a Twitch VOD link (twitch.tv/videos/...), a Twitch clip of 45 seconds or more, or a YouTube link, or upload the capture from your console or capture card. Footage needs at least 45 seconds of material.'],
   ['Pick the stretch', 'For a long session, use "clip only part of it" to set a start and an end. Only that stretch is downloaded, analysed and billed.'],
   ['Leave the layout on auto', 'With the vertical layout on auto (the default; "layouts": ["auto"] on the API) a facecam in a corner becomes INSET, and full-frame action becomes WIDE, zoomed around the motion.'],
-  ['Let the AI pick the moments', 'With commentary, Gemini ranks the transcript for stretches that stand alone. With almost no speech, Gemini watches the footage instead. Either way the clips are 15 to 120 seconds and 9:16.'],
+  ['Let the AI pick the moments', 'With commentary, the AI model ranks the transcript for stretches that stand alone. With almost no speech, the AI model watches the footage instead. Either way the clips are 15 to 120 seconds and 9:16.'],
   ['Check for spoilers, then post', 'Review each clip, then download it or post it to TikTok, YouTube Shorts and Instagram Reels from the dashboard or the API. The AI does not know what counts as a story spoiler.'],
 ]
 
@@ -3051,7 +3051,7 @@ the spoiler rule below.</p>`,
   },
   {
     q: 'Does it work with no commentary?',
-    a: 'Yes. When the footage has no audio track, or its transcript comes back under 8 words in total or under 5 words a minute, OpenShorts switches by itself to a vision pass where Gemini watches the footage and picks the moments. Those clips have no captions, because there is no speech to caption. Layouts work the same.',
+    a: 'Yes. When the footage has no audio track, or its transcript comes back under 8 words in total or under 5 words a minute, OpenShorts switches by itself to a vision pass where the AI model watches the footage and picks the moments. Those clips have no captions, because there is no speech to caption. Layouts work the same.',
     detail: `<p>Long silent footage is watched in stretches of up to 40 minutes, and the
 picks from every stretch are ranked together into one list. A job watches up to
 eight stretches, a little over five hours; past that only the first five hours
@@ -3192,7 +3192,7 @@ const wowSteps = [
   ['Bring the recording', 'Paste the twitch.tv/videos/ link of the stream, a Twitch clip of 45 seconds or more, or a YouTube link, or upload the file from OBS, Warcraft Recorder or your GPU\'s replay tool. Sources need at least 45 seconds of material.'],
   ['Pick the pulls you care about', 'On a long raid night, use "clip only part of it" to set a start and an end around the kill or the wipe. Only that stretch is downloaded, analysed and billed.'],
   ['Leave the layout on auto', 'A facecam in a corner becomes INSET (game on top, face below); a full-screen fight becomes WIDE, zoomed around the motion.'],
-  ['Let the AI pick the moments', 'With voice chat or commentary, Gemini ranks the transcript for stretches that stand alone. With almost no speech, Gemini watches the footage instead. Clips are 15 to 120 seconds by default.'],
+  ['Let the AI pick the moments', 'With voice chat or commentary, the AI model ranks the transcript for stretches that stand alone. With almost no speech, the AI model watches the footage instead. Clips are 15 to 120 seconds by default.'],
   ['Review and post', 'Fix a crop or a cut in the clip editor if needed, then post to TikTok, YouTube Shorts and Instagram Reels from the dashboard or the API, or download.'],
 ]
 
@@ -3274,7 +3274,7 @@ Instagram raised Reels to 3 minutes in January 2025.</p>`,
   },
   {
     q: 'Does it work without commentary?',
-    a: 'Yes. When the recording has no audio track, or its transcript comes back under 8 words in total or under 5 words a minute, OpenShorts switches by itself to a vision pass where Gemini watches the footage and picks the moments. Those clips have no captions, because there is no speech to caption. Layouts work the same.',
+    a: 'Yes. When the recording has no audio track, or its transcript comes back under 8 words in total or under 5 words a minute, OpenShorts switches by itself to a vision pass where the AI model watches the footage and picks the moments. Those clips have no captions, because there is no speech to caption. Layouts work the same.',
     detail: `<p>Long silent footage is watched in stretches of up to 40 minutes, and the
 picks from every stretch are ranked together. A job watches up to eight
 stretches, a little over five hours; past that only the first five hours are

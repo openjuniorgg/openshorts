@@ -2,8 +2,8 @@
 
 Base URL: `https://api.openshorts.app` (self-hosted: `http://localhost:8000`).
 Every call carries `Authorization: Bearer osk_...` or `X-API-Key: osk_...`.
-Self-hosted instances need no key, but do need a Gemini key, either in the
-server's environment or as an `X-Gemini-Key` header.
+Self-hosted instances need no key, but do need a the AI model key, either in the
+server's environment or as an `X-OpenRouter-Key` header. Every request that runs a model also names its provider and model: `X-AI-Provider` (`openrouter` or `ollama`), `X-AI-Model`. Nothing is chosen by default.
 
 The MCP server at `https://mcp.openshorts.app/mcp` wraps exactly these
 endpoints, forwarding your auth headers, so the two paths cannot drift.

@@ -17,19 +17,19 @@ def _classify(logs):
     return _classify_failure(app._job_error_text(logs))
 
 
-def test_gemini_blip_is_not_blamed_on_ffmpeg():
+def test_ai_blip_is_not_blamed_on_ffmpeg():
     # The render noise that followed the error used to win, because it was last.
     logs = [
-        "🤖  Analyzing with Gemini (2-pass: score → detail)...",
+        "🤖  Analyzing with openrouter (2-pass: score → detail)...",
         "   Built 5 scoring window(s).",
-        "❌ Gemini Error: Gemini returned an empty response body.",
+        "❌ AI provider error: The model returned an empty response body.",
         "🚀 Reframe engine v2 (ffmpeg-native render)",
         "/app/scene_detection.py:109: UserWarning: The given NumPy array is not writable",
         "🎬 Scene engine: TransNetV2 — 67 scenes",
         "Analyzing Scenes:   0%|          | 0/67 [00:00<?, ?it/s]",
         "Process failed with exit code 1",
     ]
-    assert _classify(logs) == "gemini"
+    assert _classify(logs) == "ai provider"
 
 
 def test_download_failure_survives_trailing_noise():

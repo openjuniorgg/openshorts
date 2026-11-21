@@ -68,7 +68,7 @@ The worker host is treated as less trusted than the API host: it parses
 user-supplied video. A worker that is no longer ours must not be a way into
 the API host.
 
-- It holds its own `GEMINI_API_KEY` and the worker token. No database,
+- It holds its own `OPENROUTER_API_KEY` and the worker token. No database,
   storage, mail, billing, proxy or cookie credential ever reaches it. Job
   settings cross by name from a closed list (`remote_worker.allowed_option`:
   `WATERMARK`, the source caps, `AUTO_*`, `CLIP_*`), checked on both sides, and
@@ -144,7 +144,7 @@ tripped the breaker, leaving the worker idle exactly when the API host was
 short of CPU.
 
 Worker: `WORKER_API_URL` (https), `WORKER_TOKEN`, `WORKER_SLOTS`,
-`GEMINI_API_KEY`, plus the pipeline defaults the API host sets for itself
+`OPENROUTER_API_KEY`, plus the pipeline defaults the API host sets for itself
 (`AUTO_LAYOUT`, `TRANSCRIBE_BACKEND`, `FFMPEG_THREADS`, `CLIP_WORKERS`...): only
 per-job options travel with a job.
 

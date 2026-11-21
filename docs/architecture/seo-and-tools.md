@@ -92,7 +92,7 @@ jump, and every logo on the site must reach the landing.
   `ssrf_guard.guarded()`, because a vm.tiktok.com share link redirects. Routes:
   direct, then up to two statics; never `PROXY_URL`. Video links are rebuilt
   from the numeric id before they reach yt-dlp.
-- `POST /api/tools/youtube-metadata` is one Gemini text call (tags / titles /
+- `POST /api/tools/youtube-metadata` is one the AI model text call (tags / titles /
   description) with the managed key.
 - Per-IP windows + a global daily cap per tool, 24 h cache (also for
   "no captions" / "unavailable").

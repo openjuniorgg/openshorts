@@ -1,5 +1,4 @@
 import os
-import llm_backend
 import re
 import sys
 import uuid
@@ -88,14 +87,14 @@ UPLOADS_MAX_GB = int(os.environ.get("UPLOADS_MAX_GB", "15"))
 # height (0 disables). Only applies to URLs; uploads are whatever the user gave.
 QUALITY_GATE_MIN_HEIGHT = int(os.environ.get("QUALITY_GATE_MIN_HEIGHT", "720"))
 # Reject sources shorter than this before starting (0 disables). A 24s YouTube
-# Short cannot yield 15-60s clips: Gemini returns nothing, the job burns
+# Short cannot yield 15-60s clips: the AI model returns nothing, the job burns
 # managed minutes and dies with "no usable clips" (prod 20-ago: 3 of 5 recent
 # failures were exactly this, one user retrying the same 24s video).
 MIN_SOURCE_SECONDS = int(os.environ.get("MIN_SOURCE_SECONDS", "45"))
 QUALITY_PROBE_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "quality_probe.py")
 
 # Server credentials the pipeline subprocesses (main.py, quality_probe.py) never
-# read: main.py and everything it imports use GEMINI_API_KEY / LLM_* / the
+# read: main.py and everything it imports use OPENROUTER_API_KEY / LLM_* / the
 # proxies / YOUTUBE_COOKIES and nothing from cloud/. A child that runs yt-dlp
 # and ffmpeg on user-supplied URLs and files has no business holding the
 # Stripe key, the JWT signing secret or the database password; one exploit
@@ -107,7 +106,7 @@ CHILD_ENV_DENYLIST = frozenset({
     "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID",
     "GOOGLE_CLIENT_SECRET",
     "AGENTLEDGER_API_KEY",
-    "MANAGED_UPLOAD_POST_API_KEY", "MANAGED_GEMINI_API_KEY", "UPLOAD_POST_API_KEY",
+    "MANAGED_UPLOAD_POST_API_KEY", "MANAGED_OPENROUTER_API_KEY", "UPLOAD_POST_API_KEY",
     "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY",
     "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY",
     "OPENPANEL_CLIENT_SECRET", "ELEVENLABS_API_KEY",
@@ -117,7 +116,7 @@ CHILD_ENV_DENYLIST = frozenset({
 
 def child_env(base=None):
     """A copy of the environment for a pipeline subprocess, minus the server
-    secrets in CHILD_ENV_DENYLIST. Callers add GEMINI_API_KEY themselves."""
+    secrets in CHILD_ENV_DENYLIST. Callers add OPENROUTER_API_KEY themselves."""
     env = dict(os.environ if base is None else base)
     for name in CHILD_ENV_DENYLIST:
         env.pop(name, None)
@@ -189,6 +188,11 @@ else:
 # The free queue's saturation mode (lanes, newest first, brake). Plain policy
 # with no dependencies, importable with billing off; inert unless configured.
 from cloud import queue_mode as _queue_mode
+import ai_provider
+import ai_usage
+
+AI_USAGE_LOG = os.path.abspath(os.path.join(OUTPUT_DIR, ai_provider.USAGE_LOG_NAME))
+os.environ.setdefault("AI_USAGE_LOG", AI_USAGE_LOG)
 
 
 def _saturation_on() -> bool:
@@ -200,23 +204,50 @@ async def _user_from_request(request: Request):
     return await get_current_user_optional(request)
 
 
-async def resolve_gemini(request: Request) -> Optional[str]:
-    """Resolve the Gemini API key for a request.
+def _refuse_unready(ai: "ai_provider.Settings") -> "ai_provider.Settings":
+    """A request must name a model, and OpenRouter needs a key: say which one is missing."""
+    if not ai.model:
+        raise HTTPException(status_code=400, detail="Choose a model in Settings first.")
+    if ai.provider == "openrouter" and not ai.api_key:
+        raise HTTPException(status_code=400, detail=(
+            "Add an OpenRouter key in Settings, or set OPENROUTER_API_KEY on the server."))
+    return ai
 
-    Cloud (hosted) is PAID-ONLY: there is no BYOK for the core pipeline, so the
-    ``X-Gemini-Key`` header is ignored — an entitled user (active plan or trial)
-    gets the managed server key, everyone else gets ``None`` (→ 402, start trial).
-    Self-host keeps BYOK: header wins, else the env fallback.
+
+async def resolve_ai(request: Request, body_key: Optional[str] = None) -> "ai_provider.Settings":
+    """The model settings for one request: the provider and the models the user chose in
+    Settings (X-AI-Provider, X-AI-Model), and the OpenRouter key from the
+    request (X-OpenRouter-Key, or ``body_key``) or from the server.
+
+    Cloud (hosted) is PAID-ONLY: the request's key and model choice are ignored. An entitled
+    user (active plan or trial) runs on the managed key and the operator's OPENROUTER_MODEL;
+    everyone else gets 402 (start a trial). Self-host keeps BYOK and the user's choice.
+    Raises HTTPException when no provider, model or key can be resolved.
     """
     if BILLING_ENABLED:
         user = await _user_from_request(request)
-        if managed_keys.has_active_entitlement(user):
-            return managed_keys.gemini_key()
-        return None
-    header = request.headers.get("X-Gemini-Key")
-    if header:
-        return header
-    return os.environ.get("GEMINI_API_KEY")
+        managed = managed_keys.openrouter_key() if managed_keys.has_active_entitlement(user) else None
+        if not managed:
+            raise ai_key_missing_error()
+        try:
+            settings = ai_provider.resolve(provider="openrouter", api_key=managed)
+        except ai_provider.AIUnavailableError as e:
+            raise HTTPException(status_code=503, detail=str(e))
+        if not settings.model:
+            raise HTTPException(
+                status_code=503, detail="The server has no OpenRouter model set (OPENROUTER_MODEL).")
+        return settings
+
+    def header(name: str) -> Optional[str]:
+        return (request.headers.get(name) or "").strip() or None
+
+    try:
+        ai = ai_provider.resolve(provider=header("X-AI-Provider"),
+                                 api_key=header("X-OpenRouter-Key") or body_key,
+                                 model=header("X-AI-Model"))
+    except ai_provider.AIUnavailableError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return _refuse_unready(ai)
 
 
 async def resolve_upload_post(request: Request, body_key: Optional[str] = None):
@@ -294,16 +325,50 @@ def payment_required(error: str, message: str, **extra) -> HTTPException:
     })
 
 
-def gemini_missing_error():
-    """The right 4xx when no Gemini key could be resolved.
+def ai_key_missing_error():
+    """The right 4xx when no model choice or AI key could be resolved.
 
-    402 for a signed-in-but-not-entitled cloud user (needs a plan); 400 otherwise
-    (BYOK header simply missing).
+    402 for a signed-in-but-not-entitled cloud user (needs a plan); self-host callers get
+    the message that says what to choose in Settings.
     """
     if BILLING_ENABLED:
         return payment_required(
             "no_plan", "This action needs an active OpenShorts plan (or the user's own API key).")
-    return HTTPException(status_code=400, detail="Missing X-Gemini-Key header")
+    return HTTPException(
+        status_code=400,
+        detail="Choose a provider and a model in Settings. For OpenRouter, add a key there "
+               "or set OPENROUTER_API_KEY on the server.")
+
+
+def ai_child_env(env: dict, ai: "ai_provider.Settings") -> dict:
+    """Give a pipeline subprocess the model the user chose: the provider, its model and, for OpenRouter, the key. The key travels in the child's environment, never in
+    argv. The cost ledger path travels too, so the child's answers are counted. Returns env."""
+    for name in ("AI_PROVIDER", "OPENROUTER_API_KEY", "OPENROUTER_MODEL",
+                 "OLLAMA_MODEL"):
+        env.pop(name, None)
+    env["AI_PROVIDER"] = ai.provider
+    if ai.provider == "ollama":
+        env["OLLAMA_MODEL"] = ai.model
+    else:
+        if ai.api_key:
+            env["OPENROUTER_API_KEY"] = ai.api_key
+        env["OPENROUTER_MODEL"] = ai.model
+    env["AI_USAGE_LOG"] = AI_USAGE_LOG
+    return env
+
+
+def _live_clip_ai(meta: Optional[dict]) -> Optional["ai_provider.Settings"]:
+    """The model the live monitor was started with (the dashboard's choice), from a clip's
+    callback meta. None when no usable choice was made: the clip is still queued, and its job
+    reports what is missing."""
+    meta = meta or {}
+    choice = meta.get("ai_choice") or {}
+    try:
+        settings = ai_provider.resolve(provider=choice.get("provider"), api_key=meta.get("ai_api_key"),
+                                       model=choice.get("model"))
+    except ai_provider.AIUnavailableError:
+        return None
+    return settings if settings.ready else None
 
 
 # Probe rate limiter. In-memory, resets on restart by design — the hard monthly
@@ -350,7 +415,7 @@ def _check_editor_rate(owner_id, bucket=""):
     times.append(now)
 
 
-# Gemini-backed editor actions (AI edit, AI effects) used today, per owner.
+# model-backed editor actions (AI edit, AI effects) used today, per owner.
 # Each free one is a committed 0-minute ledger row (AI_EDIT_FREE_JOB_TYPE), so
 # the allowance survives restarts and deploys; this in-memory map,
 # (owner id, UTC date) -> count, is only the fallback when the DB is down.
@@ -594,7 +659,7 @@ async def reserve_process_minutes(request, url, input_path, job_id, max_minutes=
     duration, enforces the per-user concurrent-job limit, and reserves minutes —
     raising 402 (quota) or 429 (too many jobs) as needed.
 
-    NOTE: in cloud mode ``resolve_gemini`` ignores ``X-Gemini-Key`` (paid-only,
+    NOTE: in cloud mode ``resolve_ai`` ignores ``X-OpenRouter-Key`` (paid-only,
     no BYOK), so we must NOT skip metering just because that header is present —
     otherwise a client could send a dummy header and run unlimited managed jobs
     on the operator's key for free. Only skip metering when billing is off.
@@ -603,7 +668,7 @@ async def reserve_process_minutes(request, url, input_path, job_id, max_minutes=
         return None, 2, None, None, None
     user = await _user_from_request(request)
     if not managed_keys.has_active_entitlement(user):
-        return None, 2, None, None, None  # shouldn't happen (resolve_gemini would have 402'd)
+        return None, 2, None, None, None  # shouldn't happen (resolve_ai would have 402'd)
 
     priority = _cloud_config.PLAN_PRIORITY.get(user.plan, 1)
 
@@ -890,11 +955,11 @@ async def reserve_managed_action(request, minutes, job_id, job_type):
 
 
 async def require_managed_entitlement(request):
-    """Gate a managed compute endpoint that doesn't resolve a Gemini key itself.
+    """Gate a managed compute endpoint that doesn't resolve a AI key itself.
 
     Some endpoints (subtitle/hook FFmpeg re-encodes, render proxy, the thumbnail
     upload that kicks off a YouTube download + Whisper) do expensive server work
-    without ever calling ``resolve_gemini``, so nothing was stopping an anonymous
+    without ever calling ``resolve_ai``, so nothing was stopping an anonymous
     or non-entitled caller from driving unbounded compute in cloud mode. In cloud
     mode this rejects them with 402; it's a no-op for self-host (BILLING off).
     """
@@ -902,7 +967,7 @@ async def require_managed_entitlement(request):
         return None
     user = await _user_from_request(request)
     if not managed_keys.has_active_entitlement(user):
-        raise gemini_missing_error()
+        raise ai_key_missing_error()
     return user
 
 
@@ -1554,7 +1619,7 @@ def _clips_actually_rendered(job_id, output_dir, base_name, clips):
 
     The metadata JSON is written BEFORE any clip renders, and main.py's worker
     pool swallows a per-clip exception (it only prints "❌ Clip N failed") and
-    still exits 0. So ``shorts`` is what Gemini promised, not what ffmpeg
+    still exits 0. So ``shorts`` is what the AI model promised, not what ffmpeg
     produced, and ``_canonical_clip_file`` happily returns the name of a file
     that was never written.
 
@@ -2479,7 +2544,7 @@ def _register_resumed(picked) -> int:
             pass
         if BILLING_ENABLED and user_id is not None:
             try:
-                env["GEMINI_API_KEY"] = managed_keys.gemini_key()
+                env["OPENROUTER_API_KEY"] = managed_keys.openrouter_key()
             except Exception:
                 pass
         if m.get("watermark"):
@@ -3567,7 +3632,7 @@ def _start_pending_deliveries():
 
 # --- Automatic retry of transient failures ----------------------------------
 # A job that dies of a condition on OUR side (a full GPU, an NVENC session
-# refused, a Gemini 5xx) is run once more by itself instead of showing the user
+# refused, an AI model 5xx) is run once more by itself instead of showing the user
 # "failed". Content problems (no audio, private video, nothing clip-shaped,
 # policy block) fail as before: retrying cannot fix them.
 AUTO_RETRY_LIMIT = int(os.environ.get("AUTO_RETRY_LIMIT", "1"))
@@ -3848,7 +3913,7 @@ async def _notify_clip_activity(job_id):
 
 # Markers that identify a line as an actual error rather than progress noise.
 # "Error:" (capital E) catches raised exception lines — RuntimeError:,
-# DownloadError:, GeminiBlockedError: — which "ERROR:" alone missed, leaving
+# DownloadError:, AIBlockedError: — which "ERROR:" alone missed, leaving
 # alerts with a bare "Traceback ... exit code 1" and no cause (prod 20-ago).
 _ERROR_MARKERS = ("❌", "ERROR:", "Error:", "Traceback", "FATAL", "Exception",
                   "Process failed with exit code", "No metadata file generated",
@@ -3868,13 +3933,13 @@ def _job_error_text(logs) -> str:
 
     The tail of the log is usually progress noise (scene detection, ffmpeg
     banners), which made alerts blame whatever word happened to be nearby —
-    a silent upload got reported as a broken download path, and a Gemini blip
+    a silent upload got reported as a broken download path, and an AI model blip
     as an ffmpeg problem. Pick the error-bearing lines instead, newest last.
     """
     # Per-attempt download warnings are only noise when a later attempt
     # RECOVERED: HD-direct fails on every job (banned server IP) and a static
     # proxy takes over, yet its "Video unavailable" made whole alerts read as
-    # download outages when the job actually died in Gemini. When no attempt
+    # download outages when the job actually died in the AI model. When no attempt
     # succeeded, those lines carry the real cause and must stay.
     recovered = any("Download succeeded" in ln for ln in logs)
     hits = [ln for ln in logs
@@ -4676,7 +4741,7 @@ _SENSITIVE_LOG_RE = re.compile(
     r'proxy|yt[-_ ]?dlp|youtube-?dl|cookie|residential|po[_ ]?token'
     r'|player_client|extractor|\bdownload|descarg'
     # AI model / provider / cost / pipeline internals
-    r'|gemini|openai|anthropic|\bflash\b|\bmodel\b|token|thinking'
+    r'|openrouter|ollama|openai|anthropic|\bflash\b|\bmodel\b|token|thinking'
     r'|\bcost\b|\$\s*[0-9]|scoring window|shortlist',
     re.IGNORECASE,
 )
@@ -4920,13 +4985,13 @@ def _refresh_partial_result(job_id, output_dir):
         pass
 
 
-# A live clip is kept only when Gemini's own predicted_score reaches this bar. The
-# default is 80: at 70 the quiet moments Gemini rated 75 were delivered.
+# A live clip is kept only when the model's own predicted_score reaches this bar. The
+# default is 80: at 70 the quiet moments the AI model rated 75 were delivered.
 LIVE_MIN_PREDICTED_SCORE = int(os.environ.get("LIVE_MIN_PREDICTED_SCORE", "80") or 80)
 
 
 def live_clip_has_score(clip) -> bool:
-    """Gemini gave this clip a numeric predicted_score. Nothing else counts as a rating."""
+    """The AI model gave this clip a numeric predicted_score. Nothing else counts as a rating."""
     if not isinstance(clip, dict):
         return False
     score = clip.get("predicted_score")
@@ -4934,7 +4999,7 @@ def live_clip_has_score(clip) -> bool:
 
 
 def live_clip_is_viral(clip) -> bool:
-    """Gemini's rating must reach the bar."""
+    """the model's rating must reach the bar."""
     return live_clip_has_score(clip) and clip["predicted_score"] >= LIVE_MIN_PREDICTED_SCORE
 
 
@@ -4985,8 +5050,8 @@ def _finish_job(job_id, returncode, output_dir):
             below_bar = 0
             unrated = 0
             if jobs[job_id].get('is_live_highlight'):
-                # A live clip is kept only when Gemini rates its moment viral. A clip
-                # Gemini never rated comes from the fallback that runs when the Gemini
+                # A live clip is kept only when the AI model rates its moment viral. A clip
+                # The AI model never rated comes from the fallback that runs when the AI model
                 # call fails (no key, quota), and is never delivered.
                 kept = []
                 for clip in rendered:
@@ -5005,7 +5070,7 @@ def _finish_job(job_id, returncode, output_dir):
                 jobs[job_id]['status'] = 'failed'
                 if unrated:
                     jobs[job_id]['logs'].append(
-                        "Gemini did not rate this moment (check GEMINI_API_KEY).")
+                        "the AI model did not rate this moment (check OPENROUTER_API_KEY).")
                 elif below_bar:
                     jobs[job_id]['logs'].append(
                         f"No moment reached the viral score bar ({LIVE_MIN_PREDICTED_SCORE}).")
@@ -5096,14 +5161,14 @@ async def run_job(job_id, job_data):
 REMOTE_LOST_LOG = "Execution error: the remote worker stopped answering (killed)."
 
 
-def _server_gemini_key():
+def _server_ai_key():
     """The model key this server gives its own jobs, or None."""
     try:
         if BILLING_ENABLED:
-            return managed_keys.gemini_key()
+            return managed_keys.openrouter_key()
     except Exception:
         return None
-    return os.environ.get("GEMINI_API_KEY") or None
+    return os.environ.get("OPENROUTER_API_KEY") or None
 
 
 def _remote_eligible(job_id, priority) -> bool:
@@ -5122,8 +5187,8 @@ def _remote_eligible(job_id, priority) -> bool:
         return False
     if "twitch.tv" in parsed[0].lower():
         return False             # its viewer-clip signal needs this host's keys
-    key = job['env'].get("GEMINI_API_KEY")
-    if not key or key != _server_gemini_key():
+    key = job['env'].get("OPENROUTER_API_KEY")
+    if not key or key != _server_ai_key():
         return False
     return os.path.exists(_manifest_path(job_id))
 
@@ -5523,10 +5588,40 @@ async def get_config():
         "billingEnabled": BILLING_ENABLED,
         "googleAuthEnabled": bool(BILLING_ENABLED and cloud.settings.google_auth_enabled),
         "jobRetentionSeconds": JOB_RETENTION_SECONDS,
-        # Self-host only: tells the dashboard the Gemini key is optional
-        # because the moment picker runs on an OpenAI-compatible server.
-        "localLlm": None if BILLING_ENABLED else llm_backend.describe(),
+        # Self-host only: which AI provider the server uses and whether it is ready.
+        # The key itself never leaves the server.
+        "aiProvider": None if BILLING_ENABLED else ai_provider.describe(),
     }
+
+@app.get("/api/ai/openrouter/models")
+async def ai_openrouter_models():
+    """The models OpenRouter serves that answer in text, for the Settings
+    picker. Self-host only; the list is public, so no key is needed."""
+    if BILLING_ENABLED:
+        raise HTTPException(status_code=404, detail="The model list is not offered in cloud mode.")
+    try:
+        models = await asyncio.to_thread(ai_provider.openrouter_models)
+    except ai_provider.AIError as e:
+        return {"available": False, "reason": str(e), "text": []}
+    return {"available": True, "reason": None, **models}
+
+
+@app.get("/api/ai/ollama/models")
+async def ai_ollama_models():
+    """The models this machine's Ollama has downloaded, for the Settings picker. Self-host only."""
+    if BILLING_ENABLED:
+        return {"available": False, "reason": "Cloud mode runs on OpenRouter only.", "models": []}
+    return await asyncio.to_thread(ai_provider.ollama_models)
+
+
+@app.get("/api/ai/usage")
+async def ai_usage_total():
+    """What every model answer on this server has cost so far: the total in the dashboard's
+    header. Self-host only; cloud users are billed in minutes, not in model cost."""
+    if BILLING_ENABLED:
+        return {"enabled": False}
+    return {"enabled": True, **(await asyncio.to_thread(ai_usage.summary))}
+
 
 async def _probe_youtube_quality(url: str) -> dict:
     """What the source offers ({max_height, duration, ...}); {} on any failure
@@ -5819,7 +5914,7 @@ def layout_env(requested):
     """Env overrides for the layouts this job allows. Unknown names are ignored
     rather than rejected: a newer dashboard must not break an older API.
 
-    The special value "auto" hands the choice to Gemini (one call per video).
+    The special value "auto" hands the choice to the AI model (one call per video).
     It composes with explicit picks: layout_picker only ever adds, so asking for
     "auto,punch_in" means "decide the layout yourself, and punch in regardless".
     "none" is the opposite: it switches the picker OFF for this job even when
@@ -5927,13 +6022,7 @@ async def process_endpoint(
     source_start: Optional[str] = Form(None),
     source_end: Optional[str] = Form(None),
 ):
-    api_key = await resolve_gemini(request)
-    if not api_key and not (llm_backend.active() and not BILLING_ENABLED):
-        # Self-host with an OpenAI-compatible server configured needs no
-        # Google key for the core pipeline: the moment picker runs there and
-        # the frame-based stages degrade on their own (layout_picker returns
-        # "none", silent videos fail with a message that says why).
-        raise gemini_missing_error()
+    ai = await resolve_ai(request)
 
     ack_flag = str(acknowledged).lower() in ("1", "true", "yes")
     force_low = str(force_low_quality).lower() in ("1", "true", "yes")
@@ -6040,11 +6129,7 @@ async def process_endpoint(
     # running this server. Every job then dies on `import cv2`. The quality
     # probe above already gets this right.
     cmd = [_python_bin(), "-u", "main.py"] # -u for unbuffered
-    env = child_env()
-    if api_key:
-        env["GEMINI_API_KEY"] = api_key # Override with key from request
-    else:
-        env.pop("GEMINI_API_KEY", None)  # local-LLM job: main.py must not find a stale key
+    env = ai_child_env(child_env(), ai)
     # The stdio fix above only covers this process. main.py prints an emoji on
     # its first line and configures nothing, so on a cp1252 console the child
     # still dies before it renders anything -- the server starts and every job
@@ -6059,7 +6144,7 @@ async def process_endpoint(
     if chosen:
         print(f"[layouts] job={job_id} enabled={sorted(chosen)}")
 
-    # Auto-hook: burn each clip's Gemini hook text during the render. Off when
+    # Auto-hook: burn each clip's the AI model hook text during the render. Off when
     # the field is absent, so API/MCP/webhook callers keep their old output
     # byte-for-byte; the dashboard sends an explicit value either way.
     if str(auto_hook).lower() in ("1", "true", "yes"):
@@ -6740,15 +6825,15 @@ async def _enqueue_live_clip_async(clip_path: str, meta: Optional[Dict[str, Any]
 
         cmd = [_python_bin(), "-u", "main.py", "-i", input_path, "-o", job_output_dir, "--format", "vertical"]
         env = child_env()
-        api_key = (meta.get("gemini_api_key") if meta else None) or os.environ.get("GEMINI_API_KEY")
-        if api_key:
-            env["GEMINI_API_KEY"] = api_key
+        live_ai = _live_clip_ai(meta)
+        if live_ai is not None:
+            env = ai_child_env(env, live_ai)
         env.setdefault("PYTHONIOENCODING", "utf-8")
 
         # Streamer reframe layout: webcam on top, gameplay on bottom
         env["IS_STREAM_SOURCE"] = "1"
         env["WEBCAM_ON_TOP"] = "1"
-        # One live moment: Gemini may pick up to three clips; the viral bar decides which are kept.
+        # One live moment: the AI model may pick up to three clips; the viral bar decides which are kept.
         env["CLIP_TARGET_MIN"] = "1"
         env["CLIP_TARGET_MAX"] = "3"
         # A channel with a calibrated webcam box skips detection (webcam_boxes.json).
@@ -6941,12 +7026,13 @@ async def live_monitor_start(req: Optional[LiveMonitorStartRequest] = None, requ
         else:
             normalized_channels.append(ch)
 
-    # The dashboard's Gemini key (X-Gemini-Key), read before the lock: awaiting
-    # while holding a threading lock would block the event loop.
+    # The dashboard's AI choice and key, read before the lock: awaiting while holding a
+    # threading lock would block the event loop. With no choice yet the monitor still
+    # starts, and each clip then reports that a model must be chosen.
     try:
-        gemini_key = await resolve_gemini(request)
+        ai = await resolve_ai(request)
     except Exception:
-        gemini_key = None
+        ai = None
     with _live_monitor_lock:
         try:
             if live_monitor_instance is not None:
@@ -6980,7 +7066,10 @@ async def live_monitor_start(req: Optional[LiveMonitorStartRequest] = None, requ
                         live_monitor_instance.on_clip_ready = _on_live_clip_ready
 
             # Kept in memory for this monitoring session only; never written to disk.
-            live_monitor_instance.gemini_api_key = gemini_key or None
+            live_monitor_instance.ai_api_key = ai.api_key if ai else None
+            live_monitor_instance.ai_choice = (
+                {"provider": ai.provider, "model": ai.model}
+                if ai else {})
             if hasattr(live_monitor_instance, "start"):
                 start_res = live_monitor_instance.start()
                 if asyncio.iscoroutine(start_res):
@@ -7085,7 +7174,7 @@ async def live_monitor_clip(req: Optional[LiveMonitorClipRequest] = None, reques
     """Triggers an immediate highlight clip extraction for a specific live stream.
 
     The extracted clip is automatically enqueued into OpenShorts' processing queue
-    with IS_STREAM_SOURCE=1 and WEBCAM_ON_TOP=1, running through Whisper, Gemini,
+    with IS_STREAM_SOURCE=1 and WEBCAM_ON_TOP=1, running through Whisper, the AI model,
     camera reframing, and subtitles into a 9:16 vertical short.
     """
     global live_monitor_instance
@@ -7111,17 +7200,18 @@ async def live_monitor_clip(req: Optional[LiveMonitorClipRequest] = None, reques
     if live_monitor_instance is None:
         raise HTTPException(status_code=400, detail="Live monitor is not running. Please start monitoring first.")
 
-    gemini_key = None
+    extra: dict = {}
     if request:
         try:
-            gemini_key = await resolve_gemini(request)
+            ai = await resolve_ai(request)
+            extra = {"ai_api_key": ai.api_key or None,
+                     "ai_choice": {"provider": ai.provider, "model": ai.model}}
         except Exception:
             pass
 
     with _live_monitor_lock:
         try:
             if hasattr(live_monitor_instance, "trigger_clip"):
-                extra = {"gemini_api_key": gemini_key} if gemini_key else {}
                 res = live_monitor_instance.trigger_clip(channel, reason=reason, **extra)
                 if asyncio.iscoroutine(res):
                     await res
@@ -7457,13 +7547,10 @@ async def edit_clip(
     request: Request,
 ):
     # Cloud (paid) mode disables BYOK: ignore any body api_key so it can't skip
-    # the entitlement gate or metering (mirrors resolve_gemini ignoring the
+    # the entitlement gate or metering (mirrors resolve_ai ignoring the
     # header). Self-host keeps BYOK — the body key wins there.
     body_key = None if BILLING_ENABLED else req.api_key
-    final_api_key = body_key or await resolve_gemini(request)
-
-    if not final_api_key:
-        raise gemini_missing_error()
+    ai = await resolve_ai(request, body_key=body_key)
 
     await _ensure_job_files(req.job_id, request)
     if req.job_id not in jobs:
@@ -7474,7 +7561,7 @@ async def edit_clip(
     if 'result' not in job or 'clips' not in job['result']:
         raise HTTPException(status_code=400, detail="Job result not available")
 
-    # Meter the managed Gemini call so it can't be looped for free. Skip only for
+    # Meter the managed the AI model call so it can't be looped for free. Skip only for
     # genuine BYOK (self-host body key) — in cloud, body_key is always None.
     edit_minutes = await _ai_edit_minutes(request, req.job_id) if BILLING_ENABLED else 0
     reservation_id = None if body_key else await reserve_managed_action(
@@ -7513,7 +7600,7 @@ async def edit_clip(
         # Run editing in a thread to avoid blocking main loop
         # Since VideoEditor uses blocking calls (subprocess, API wait)
         def run_edit():
-            editor = VideoEditor(api_key=final_api_key)
+            editor = VideoEditor(ai=ai)
             
             # SAFE FILE RENAMING STRATEGY (Avoid UnicodeEncodeError in Docker)
             # Create a safe ASCII filename in the same directory. Unique per
@@ -7532,8 +7619,8 @@ async def edit_clip(
             shutil.copy(input_path, safe_input_path)
             
             try:
-                # 1. Upload (using safe path)
-                vid_file = editor.upload_video(safe_input_path)
+                # 1. The safe copy is what the model sees, as sampled frames
+                vid_file = safe_input_path
                 
                 # 2. Get duration
                 import cv2
@@ -8209,8 +8296,11 @@ async def _set_clip_mode_locked(req: ClipModeRequest, request: Request, job):
         reservation_id = await reserve_managed_action(request, minutes, req.job_id, "pro")
         layers = _clip_layers(clip, had_hook, had_captions)
         # Keyword titles need a model: the caller's entitlement decides, as
-        # for every other Gemini-backed action. None just means no titles.
-        api_key = await resolve_gemini(request)
+        # for every other model-backed action. None just means no titles.
+        try:
+            ai = await resolve_ai(request)
+        except HTTPException:
+            ai = None  # no model chosen: the clip keeps its captions, without keyword titles
         hook_seconds = 0.0
         if had_hook:
             try:
@@ -8221,7 +8311,7 @@ async def _set_clip_mode_locked(req: ClipModeRequest, request: Request, job):
             new_base, updates = await loop.run_in_executor(
                 None, lambda: pro_mode.convert(
                     base_path, clean_name, clip, data.get('transcript') or {},
-                    wait=PRO_WAIT_SECONDS, api_key=api_key, hook_seconds=hook_seconds,
+                    wait=PRO_WAIT_SECONDS, ai=ai, hook_seconds=hook_seconds,
                     caption_style=CAPTION_PRESETS["cine"] if had_captions else None))
         except Exception as e:
             if reservation_id:
@@ -8761,11 +8851,8 @@ async def generate_effects_config(
     req: EffectsGenerateRequest,
     request: Request,
 ):
-    """Generate structured EffectsConfig JSON for Remotion rendering via Gemini AI."""
-    final_api_key = await resolve_gemini(request)
-
-    if not final_api_key:
-        raise gemini_missing_error()
+    """Generate structured EffectsConfig JSON for Remotion rendering via the AI model AI."""
+    ai = await resolve_ai(request)
 
     await _ensure_job_files(req.job_id, request)
     if req.job_id not in jobs:
@@ -8776,7 +8863,7 @@ async def generate_effects_config(
     if 'result' not in job or 'clips' not in job['result']:
         raise HTTPException(status_code=400, detail="Job result not available")
 
-    # Meter the managed Gemini call (no-op for self-host).
+    # Meter the managed the AI model call (no-op for self-host).
     fx_minutes = await _ai_edit_minutes(request, req.job_id) if BILLING_ENABLED else 0
     reservation_id = await reserve_managed_action(request, fx_minutes, req.job_id, "effects")
 
@@ -8794,7 +8881,7 @@ async def generate_effects_config(
             raise HTTPException(status_code=404, detail=f"Video file not found: {input_path}")
 
         def run_effects_generation():
-            editor = VideoEditor(api_key=final_api_key)
+            editor = VideoEditor(ai=ai)
 
             # Create safe ASCII filename to avoid encoding issues
             safe_filename = f"temp_effects_{req.job_id}.mp4"
@@ -8802,8 +8889,8 @@ async def generate_effects_config(
             shutil.copy(input_path, safe_input_path)
 
             try:
-                # Upload video to Gemini
-                vid_file = editor.upload_video(safe_input_path)
+                # Upload video to the AI model
+                vid_file = safe_input_path
 
                 # Get video metadata via ffprobe
                 probe_cmd = [
@@ -8856,7 +8943,7 @@ async def generate_effects_config(
         effects_config = await loop.run_in_executor(None, run_effects_generation)
 
         if effects_config is None:
-            raise HTTPException(status_code=500, detail="Failed to generate effects config from Gemini")
+            raise HTTPException(status_code=500, detail="Failed to generate effects config from the AI model")
 
         if reservation_id:
             await _metering.commit_reservation(reservation_id)
@@ -10277,16 +10364,14 @@ async def thumbnail_analyze(
     file: Optional[UploadFile] = File(None),
     url: Optional[str] = Form(None),
     session_id: Optional[str] = Form(None),
-    x_gemini_key: Optional[str] = Header(None, alias="X-Gemini-Key")
+    x_openrouter_key: Optional[str] = Header(None, alias="X-OpenRouter-Key")
 ):
     """Analyze a video and suggest viral YouTube titles."""
-    api_key = await resolve_gemini(request)
-    if not api_key:
-        raise gemini_missing_error()
+    ai = await resolve_ai(request)
 
     pre_transcript = None
     url = (url or "").strip() or None
-    # Managed Gemini analysis (no-op for self-host); a source analysed here
+    # Managed the AI model analysis (no-op for self-host); a source analysed here
     # directly also pays for its transcription, as /upload would have.
     analyze_minutes = _cloud_config.MANAGED_ANALYSIS_MINUTES if BILLING_ENABLED else 0
     download_url = None
@@ -10344,7 +10429,7 @@ async def thumbnail_analyze(
 
         # Run analysis in thread pool (skips Whisper if pre_transcript is available)
         loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, analyze_video_for_titles, api_key, video_path, pre_transcript)
+        result = await loop.run_in_executor(None, analyze_video_for_titles, ai, video_path, pre_transcript)
 
         # Store/update session context
         if session_id not in thumbnail_sessions:
@@ -10400,7 +10485,7 @@ _thumbnail_text_times: dict = {}  # owner id -> [monotonic timestamps]
 
 
 async def _thumbnail_text_gate(request, session):
-    """Bounds on the Gemini text calls of Thumbnail Studio (refine, describe).
+    """Bounds on the AI model text calls of Thumbnail Studio (refine, describe).
 
     Cloud only. An hourly cap per user, and a free account at zero minutes can
     only keep working on a session it already paid for (analysis or
@@ -10439,9 +10524,7 @@ async def thumbnail_titles(
     request: Request,
 ):
     """Refine title suggestions or accept a manual title."""
-    api_key = await resolve_gemini(request)
-    if not api_key:
-        raise gemini_missing_error()
+    ai = await resolve_ai(request)
     _check_text_length(req.title, _cloud_cfg().THUMBNAIL_TITLE_MAX_CHARS, "title")
     _check_text_length(req.message, _cloud_cfg().THUMBNAIL_MESSAGE_MAX_CHARS, "message")
 
@@ -10489,7 +10572,7 @@ async def thumbnail_titles(
         result = await loop.run_in_executor(
             None,
             refine_titles,
-            api_key,
+            ai,
             session["context"],
             req.message,
             session["conversation"]
@@ -10525,18 +10608,16 @@ async def thumbnail_generate(
     face: Optional[UploadFile] = File(None),
     background: Optional[UploadFile] = File(None),
 ):
-    """Generate YouTube thumbnails with Gemini image generation.
+    """Generate YouTube thumbnails with the AI model image generation.
 
     burn_text: the image model paints the scene with clean negative space and
     PIL sets the hook text (Anton, black stroke). Off = the model renders the
     text itself, which is prettier when it works and misspelled when it does
     not. frame: url of a frame from /api/thumbnail/frames to use as the
     person reference when no face photo is uploaded."""
-    api_key = await resolve_gemini(request)
-    if not api_key:
-        raise gemini_missing_error()
+    ai = await resolve_ai(request)
 
-    # Image generation is the one expensive managed Gemini call — paid plans only.
+    # Image generation is the one expensive managed the AI model call — paid plans only.
     if BILLING_ENABLED:
         user = await _user_from_request(request)
         if user is not None and user.plan == "free":
@@ -10554,7 +10635,7 @@ async def thumbnail_generate(
     # Clamp count
     count = min(max(1, count), 6)
 
-    # Gemini image generation is the expensive managed call — meter it against the
+    # The AI model image generation is the expensive managed call — meter it against the
     # plan quota (a batch ≈ THUMBNAIL_MINUTES). No-op for BYOK / self-host.
     thumb_minutes = _cloud_config.THUMBNAIL_MINUTES if BILLING_ENABLED else 0
     reservation_id = await reserve_managed_action(request, thumb_minutes, session_id, "thumbnail")
@@ -10598,14 +10679,14 @@ async def thumbnail_generate(
         thumbnails = await loop.run_in_executor(
             None,
             functools.partial(
-                generate_thumbnail, api_key, title, session_id, face_path, bg_path,
+                generate_thumbnail, ai, title, session_id, face_path, bg_path,
                 extra_prompt, count, video_context, burn_text=burn_text,
                 thumbnail_text_hint=text_hint, language=language,
                 frame_reference=frame_reference),
         )
 
         if not thumbnails:
-            raise HTTPException(status_code=500, detail="Thumbnail generation failed. Please check your Gemini API key has access to image generation (gemini-3.1-flash-image-preview model).")
+            raise HTTPException(status_code=500, detail="Thumbnail generation failed. Thumbnails are off in this build: no image model is offered.")
 
         # Success — charge the reserved minutes.
         if reservation_id:
@@ -10666,9 +10747,7 @@ async def thumbnail_describe(
     request: Request,
 ):
     """Generate a YouTube description with chapters from the transcript."""
-    api_key = await resolve_gemini(request)
-    if not api_key:
-        raise gemini_missing_error()
+    ai = await resolve_ai(request)
 
     _check_text_length(req.title, _cloud_cfg().THUMBNAIL_TITLE_MAX_CHARS, "title")
     if req.session_id not in thumbnail_sessions:
@@ -10686,7 +10765,7 @@ async def thumbnail_describe(
         result = await loop.run_in_executor(
             None,
             generate_youtube_description,
-            api_key,
+            ai,
             req.title,
             segments,
             session.get("language", "en"),
@@ -10877,9 +10956,7 @@ async def saasshorts_analyze(
     request: Request,
 ):
     """Analyze a URL or manual description and generate video scripts."""
-    gemini_key = await resolve_gemini(request)
-    if not gemini_key:
-        raise gemini_missing_error()
+    ai = await resolve_ai(request)
 
     if not req.url and not req.description:
         raise HTTPException(status_code=400, detail="Provide a URL or a product description")
@@ -10889,7 +10966,7 @@ async def saasshorts_analyze(
                             detail=f"num_scripts must be between 1 and {max_scripts}.")
     _check_text_length(req.description, _cloud_cfg().SAAS_DESCRIPTION_MAX_CHARS, "description")
 
-    # Meter the managed Gemini research/analysis (no-op for self-host).
+    # Meter the managed the AI model research/analysis (no-op for self-host).
     saas_minutes = _cloud_config.MANAGED_ANALYSIS_MINUTES if BILLING_ENABLED else 0
     reservation_id = await reserve_managed_action(request, saas_minutes, "saasshorts", "saasshorts_analyze")
 
@@ -10902,8 +10979,8 @@ async def saasshorts_analyze(
             if req.url and req.url.strip():
                 # URL provided: full scrape + research pipeline
                 scraped = scrape_website(req.url)
-                web_research = research_saas_online(req.url, gemini_key)
-                analysis = analyze_saas(scraped, gemini_key, web_research=web_research)
+                web_research = research_saas_online(req.url, ai)
+                analysis = analyze_saas(scraped, ai, web_research=web_research)
             else:
                 # Manual description: build analysis from description
                 analysis = {
@@ -10916,7 +10993,7 @@ async def saasshorts_analyze(
                     "tone": "casual and authentic",
                 }
 
-            scripts = generate_scripts(analysis, gemini_key, req.num_scripts, req.style, req.language, req.actor_gender)
+            scripts = generate_scripts(analysis, ai, req.num_scripts, req.style, req.language, req.actor_gender)
             return {
                 "analysis": analysis,
                 "scripts": scripts,
@@ -11282,7 +11359,7 @@ async def video_html_page(video_id: str):
     caption = html_mod.escape(raw_caption)
     narration = html_mod.escape(meta.get("full_narration", ""))
     # Everything below lands in markup, generated from user input (product
-    # page scrape, Gemini output): escape it all, and only let http(s) URLs
+    # page scrape, the AI model output): escape it all, and only let http(s) URLs
     # into src/href/content so a javascript: URL cannot ride along either.
     raw_video_url = _http_url_or_empty(meta.get("video_url", ""))
     raw_actor_url = _http_url_or_empty(meta.get("actor_url", ""))

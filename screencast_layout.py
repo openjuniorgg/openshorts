@@ -9,7 +9,7 @@ The two previous attempts tried to find that content in pixels and both failed
 (see the note above analyze_scenes_strategy in main.py): edge density and MSER
 text density BOTH score ordinary detailed footage higher than a clean panel of
 text, because they measure visual busyness rather than meaning. The third
-attempt asked Gemini and detected well, but decided badly: it flagged corner
+attempt asked the model and detected well, but decided badly: it flagged corner
 tickers and demoted well-framed talking heads to the blurred layout.
 
 What is different here is the question asked and what the answer is used for.
@@ -26,7 +26,7 @@ What is different here is the question asked and what the answer is used for.
     speaker, which is a reasonable frame even when the trigger was wrong.
 
 Off by default (``SCREENCAST_LAYOUT=1``, set per job by ``layouts=["screencast"]``
-or by the layout picker). Which shots show a screen is asked of Gemini per clip
+or by the layout picker). Which shots show a screen is asked of the model per clip
 (``detect_content_ranges``, one still per shot); without an answer the scenes
 the face classifier sent to GENERAL are taken as the screen (``fallback_ranges``),
 because the job was declared a screencast and GENERAL is the one layout that
@@ -246,7 +246,7 @@ def overlapping_range(scene_start, scene_end, ranges):
 # shrunk into a strip over a blurred copy of itself), a face that only appears
 # inside the app as TRACK (a centre crop through the middle of the screen).
 #
-# The detector this module used to carry uploaded the whole SOURCE to Gemini
+# The detector this module used to carry uploaded the whole SOURCE to the model
 # and asked for time ranges. That cannot be wired into a job as it was: a
 # 37-min 1440p tutorial is ~670k tokens and a GB-sized upload, per job, to get
 # back a handful of numbers. This asks per CLIP instead, with one still per
@@ -367,38 +367,23 @@ def detect_content_ranges(video_path, scenes, fps):
         return []
     if not scenes:
         return None
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        print("   ⚠️ Screen check needs GEMINI_API_KEY.")
+    import ai_prompts
+    import ai_provider
+    if not ai_provider.configured():
+        print("   ⚠️ Screen check needs an AI provider: an OpenRouter key, or AI_PROVIDER=ollama.")
         return None
-
-    model_name = os.environ.get("GEMINI_MODEL") or 'gemini-3.1-flash-lite'
     asked = shots_to_ask(scenes)
     print(f"   🔎 Screen check on {len(asked)} shot(s)…")
     try:
-        from google import genai
-        from google.genai import types as genai_types
-        import gemini_worker
-
         frames = _shot_frames(video_path, scenes, asked)
         keep = [(i, jpg) for i, jpg in zip(asked, frames) if jpg]
         if not keep:
             print("   ⚠️ No readable frames for the screen check.")
             return None
-        parts = []
-        for n, (_, jpg) in enumerate(keep):
-            parts.append(f"Shot {n}:")
-            parts.append(genai_types.Part.from_bytes(data=jpg, mime_type="image/jpeg"))
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model=model_name,
-            contents=parts + [gemini_worker.SHOT_CONTENT_PROMPT],
-            config=genai_types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=gemini_worker.ShotContentResponse,
-            ))
-        gemini_worker.raise_if_blocked(response)
-        raw = (json.loads(response.text) or {}).get("shots") or []
+        answer, _cost = ai_provider.generate_json(
+            ai_prompts.SHOT_CONTENT_PROMPT, ai_prompts.ShotContentResponse,
+            images=[jpg for _, jpg in keep])
+        raw = answer.get("shots") or []
     except Exception as e:
         print(f"   ⚠️ Screen check failed ({e}).")
         return None

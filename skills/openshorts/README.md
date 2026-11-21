@@ -3,7 +3,7 @@
 `SKILL.md` plus `reference.md` are an
 [Agent Skill](https://github.com/agentskills/agentskills): an open standard
 adopted by 26+ agent products, so this one folder installs in Claude Code,
-OpenClaw, Hermes, Codex, Gemini CLI, Cursor and VS Code without changes.
+OpenClaw, Hermes, Codex, the AI model CLI, Cursor and VS Code without changes.
 
 It teaches an agent to turn a long video into vertical 9:16 clips through the
 OpenShorts API: which options actually produce good clips, which responses look
@@ -17,7 +17,7 @@ that host stores credentials (`OPENSHORTS_API_KEY` where an env var is the
 convention). The hosted free tier includes 20 minutes of source video per month
 with a watermark; paid plans start at $12/month without one. OpenShorts is also
 MIT-licensed and self-hostable, which needs a GPU machine, your own Google
-Gemini key, and your own [Upload-Post](https://www.upload-post.com/) account for
+the AI model key, and your own [Upload-Post](https://www.upload-post.com/) account for
 the publishing steps.
 
 If the host speaks MCP, add the server too so the agent gets typed tools instead

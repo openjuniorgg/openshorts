@@ -4,7 +4,7 @@ Two importable workflows, from a one-shot clipper to a full channel autopilot.
 Both work out of the box with [OpenShorts Cloud](https://www.openshorts.app/)
 (free tier: 20 min of video, paid plans from $12/mo). OpenShorts is also open
 source: self-hosters can point either workflow at their own instance by
-changing the base URL (needs a GPU box, your own Gemini key, and your own
+changing the base URL (needs a GPU box, your own the AI model key, and your own
 [Upload-Post](https://www.upload-post.com/) account for the posting steps).
 
 | Workflow | What it does | Credentials |

@@ -138,7 +138,7 @@ const stepsBlock = (heading, steps) => `
 ${steps.map(([n, text], i) => `<h3>${i + 1}. ${esc(n)}</h3>\n<p>${esc(text)}</p>`).join('\n')}`
 
 /* The one-sentence answer under the H1, before the form: what AI Overviews and
- * Gemini lift for "YouTube clip maker" style questions. Pages that carry one
+ * the AI model lift for "YouTube clip maker" style questions. Pages that carry one
  * were revised on ANSWER_REVISED. */
 const ANSWER_REVISED = '2026-10-30'
 const ANSWER_PRICE = `Your first video is free up to ${FIRST_VIDEO_MINUTES} minutes (watermarked, no card); no watermark from $${CLOUD.lowPrice}/month, or self-host it free under MIT.`
@@ -161,7 +161,7 @@ const SITES_LIST = 'YouTube, Vimeo, TikTok, X (Twitter), Twitch, Kick, Facebook,
 
 const ytClipSteps = [
   ['Paste the YouTube link', 'Copy the address of the video (a watch link, a youtu.be share link, a Shorts link or the replay of a finished livestream) and paste it in the box. OpenShorts fetches the video itself, so there is nothing to download first.'],
-  ['The AI finds the moments', 'The audio is transcribed word by word and the video is scanned for cuts. Google Gemini then scores the whole transcript in windows of about 90 seconds, shortlists the strongest and cuts each moment so it opens on a complete thought, 15 to 120 seconds long unless you set other limits.'],
+  ['The AI finds the moments', 'The audio is transcribed word by word and the video is scanned for cuts. the AI model then scores the whole transcript in windows of about 90 seconds, shortlists the strongest and cuts each moment so it opens on a complete thought, 15 to 120 seconds long unless you set other limits.'],
   ['Reframe, caption, export or post', 'Each clip is reframed to 9:16 so the speaker stays in the frame, captions are burned in from the word-level transcript and a hook line is drawn over the opening seconds. Download the MP4s, or post them to YouTube Shorts, TikTok and Instagram from the dashboard.'],
 ]
 
@@ -205,7 +205,7 @@ ${stepsBlock('How the YouTube clip maker works', ytClipSteps)}
 
 <h2>What one real job looks like</h2>
 <p>The clip below came out of a 39-minute interview pasted as a YouTube link,
-untouched. Nobody chose the moment, set a crop or typed a caption: Gemini
+untouched. Nobody chose the moment, set a crop or typed a caption: the AI model
 picked the passage from the transcript, the face tracker kept the speaker in a
 frame a third the width of the original, and the words on screen are the
 transcript's own, timed word by word.</p>
@@ -351,7 +351,7 @@ const UGC_PRICE = (COMPARISON_ROWS.find((r) => r.feature.startsWith('AI UGC vide
 
 const shortsSteps = [
   ['Bring the long video', 'Paste a link to the long video (YouTube, or any of the other sites listed below) or upload the file. A podcast episode, a talk, a tutorial or a livestream replay all work; the source needs at least 45 seconds of material.'],
-  ['Let the AI pick and cut the Shorts', 'The video is transcribed word by word, Gemini scores every stretch of it for how well it would stand alone, and the best ones are cut on sentence boundaries, 15 to 120 seconds by default or up to 3 minutes if you raise the maximum.'],
+  ['Let the AI pick and cut the Shorts', 'The video is transcribed word by word, the AI model scores every stretch of it for how well it would stand alone, and the best ones are cut on sentence boundaries, 15 to 120 seconds by default or up to 3 minutes if you raise the maximum.'],
   ['Post them as Shorts', 'Each Short is reframed to 9:16, captioned, given a hook over the first seconds and a title. Publish it to your YouTube channel from the dashboard, schedule a week of them, or download the files.'],
 ]
 
@@ -431,12 +431,12 @@ something new on the Shorts shelf every day.</p>
 useful way is to find the passages that make sense with no context, and that
 takes reading all of it. OpenShorts transcribes the video with a timestamp on
 every word, splits the transcript into windows of about 90 seconds and has
-Gemini score every window on hook strength, emotional payload and how well it stands alone. The
+the AI model score every window on hook strength, emotional payload and how well it stands alone. The
 score is global, so the best ten windows of a long episode win wherever they
 sit, then a second pass cuts each clip so it starts on a sentence and ends on
 the payoff.</p>
 <p>When a video has almost no speech (gameplay, music, a silent demo), the
-transcript is useless, so the video itself is sent to Gemini to watch instead,
+transcript is useless, so the video itself is sent to the AI model to watch instead,
 and the Shorts come back the same way, just without captions.</p>
 ${demoBlock('talk', 'A 39-minute interview cut into a Short: the moment was picked from the transcript, the crop follows the speaker and the captions are timed word by word.')}
 
@@ -522,7 +522,7 @@ ${sources([
 
 const tiktokSteps = [
   ['Paste the long video', 'A YouTube link is the usual start, but any public video link from the sites listed on this page works, a long TikTok included. Or upload the recording.'],
-  ['AI cuts the TikToks', 'Gemini reads the word-level transcript, ranks every stretch for how well it would hold a stranger, and cuts the best ones on sentence boundaries, 15 to 120 seconds each by default.'],
+  ['AI cuts the TikToks', 'the AI model reads the word-level transcript, ranks every stretch for how well it would hold a stranger, and cuts the best ones on sentence boundaries, 15 to 120 seconds each by default.'],
   ['Send them to TikTok', 'Each clip comes back 9:16 with captions and a hook. Send it to your TikTok account from the dashboard, where it lands as a draft for you to finish with a sound and hashtags, or download the MP4.'],
 ]
 
@@ -663,7 +663,7 @@ ${sources([
 
 const reelSteps = [
   ['Add the long video', 'Paste a public link (YouTube, Vimeo, a Facebook video or Live replay, an Instagram post, and the other sites listed below) or upload the recording: a podcast, a webinar, a talk, a class.'],
-  ['The AI picks the Reels', 'The recording is transcribed word by word and Gemini ranks every stretch of it for how well it would play on its own. The strongest are cut on sentence boundaries, 15 to 120 seconds each unless you set other limits.'],
+  ['The AI picks the Reels', 'The recording is transcribed word by word and the AI model ranks every stretch of it for how well it would play on its own. The strongest are cut on sentence boundaries, 15 to 120 seconds each unless you set other limits.'],
   ['Publish to Instagram or download', 'Each Reel comes back 9:16 with captions, a hook and a description written for Instagram. Publish it to your Instagram account as a Reel, schedule a week of them, or download the MP4 for Facebook.'],
 ]
 
@@ -713,7 +713,7 @@ voice is yours and the work saved is the part that takes longest by hand:
 watching the whole thing to find the moments.</p>
 <p>That search is what the AI does here. The recording is transcribed with a
 timestamp on every word, the transcript is split into windows of about 90
-seconds, and Gemini scores every window on hook strength, emotional payload
+seconds, and the AI model scores every window on hook strength, emotional payload
 and how well it stands alone. The best windows go to a second pass that cuts
 each Reel on sentence boundaries. For anything over about 12 minutes it is
 asked for 6 to 12 Reels, and returns fewer rather than padding.</p>
@@ -822,7 +822,7 @@ const PLAN_MIN = (name) => PRICE_MODELS.openshorts.plans.find((p) => p.name === 
 
 const twitchSteps = [
   ['Paste the VOD link', 'Open the past broadcast on Twitch and copy its address (twitch.tv/videos/...), or the link of a Twitch clip of 45 seconds or more. A channel page is the live channel, not a recording, so the box asks for the VOD instead.'],
-  ['The AI finds the moments in the stream', 'The VOD is transcribed with a timestamp on every word and scanned for scene cuts, and Gemini ranks every stretch of the talk for how well it would play to someone who was not watching live. Streams with almost no speech go to a vision pass instead.'],
+  ['The AI finds the moments in the stream', 'The VOD is transcribed with a timestamp on every word and scanned for scene cuts, and the AI model ranks every stretch of the talk for how well it would play to someone who was not watching live. Streams with almost no speech go to a vision pass instead.'],
   ['Get vertical clips with your facecam', 'Each clip is reframed to 9:16: gameplay with a webcam box becomes gameplay on top and your enlarged facecam below, just-chatting segments follow your face. Captions and a hook are burned in; post to TikTok, YouTube Shorts and Instagram or download.'],
 ]
 
@@ -831,7 +831,7 @@ const twitchFaq = [
   { q: 'Does it work with a whole Twitch VOD?', a: 'Yes. Paste the twitch.tv/videos/ link of the past broadcast. Moment scoring reads the transcript rather than every frame, so a long VOD is analysed the same way as a short one. One job returns the best 6 to 12 moments of whatever it is given, so for a long stream it usually pays to clip it in parts.' },
   { q: 'Can it clip my stream while I am live?', a: 'No. It works from recordings: paste the VOD once the broadcast has ended, before Twitch removes the past broadcast.' },
   { q: 'Will my facecam stay in the clip?', a: 'Yes, with the vertical layout on auto. A webcam box composited into a corner is detected by its geometry (small, off centre, still) and the clip renders with the gameplay full width on top and the facecam cropped out and enlarged below.' },
-  { q: 'What about gameplay with no commentary?', a: 'When the transcript comes back with under 8 words, or under 5 words a minute, OpenShorts switches to a vision pass where Gemini watches the footage and picks the moments. Those clips have no captions. A long silent VOD is watched in stretches of up to 40 minutes and the best picks of all of them are kept, up to a little over five hours per job.' },
+  { q: 'What about gameplay with no commentary?', a: 'When the transcript comes back with under 8 words, or under 5 words a minute, OpenShorts switches to a vision pass where the AI model watches the footage and picks the moments. Those clips have no captions. A long silent VOD is watched in stretches of up to 40 minutes and the best picks of all of them are kept, up to a little over five hours per job.' },
   { q: 'Can I turn Twitch clips into TikToks?', a: 'A Twitch clip of 45 seconds or more can be pasted as a source and comes back reframed to 9:16 with captions. Shorter clips are under the minimum; for those a static crop in the free video to 9:16 converter is the quicker route.' },
   { q: 'How many clips do I get from a stream?', a: 'Each job returns up to about a dozen: for any source longer than 12 minutes the AI is asked for 6 to 12. A four-hour stream clipped in four one-hour parts gives four times as many candidates as the same stream clipped in one job.' },
   { q: 'Does it post to TikTok and YouTube Shorts?', a: 'Yes, from the dashboard: YouTube Shorts and Instagram Reels are published directly, and TikTok receives the clip as a draft in your TikTok inbox to finish in the app.' },
@@ -935,10 +935,10 @@ clips</a>.</p>
 commentary. A grind with the mic muted, or a stream that is mostly music, has
 nothing to read, so OpenShorts does not try. When the transcript comes back
 under 8 words in total, or under 5 words per minute, the video itself is sent to
-Gemini, which watches it and returns moments in the same 15 to 120 second band.
+the AI model, which watches it and returns moments in the same 15 to 120 second band.
 Layouts and facecam detection work the same; the clips come out without
 captions, because there is no speech to caption.</p>
-<p>That vision pass sends Gemini the footage itself, which it counts at
+<p>That vision pass sends the AI model the footage itself, which it counts at
 roughly 300 tokens a second, so an hour is already around a million tokens. A
 long silent VOD is therefore watched in stretches of up to 40 minutes, each as
 a small low-resolution copy, and the picks from every stretch are ranked
@@ -1010,7 +1010,7 @@ const SPEED_LINE = `${CPU_SPEED} on your own machine, while on OpenShorts Cloud 
 
 const kickSteps = [
   ['Copy the Kick VOD or clip link', 'On the streamer\'s Kick page open Videos and copy the link of the past stream, or copy the link of a Kick clip that runs 45 seconds or more. Paste it in the box. A bare channel link is the live channel, so the box asks for the recording.'],
-  ['AI picks the moments worth posting', 'The stream is transcribed word by word, Gemini ranks every stretch of it for how well it plays with no context, and the strongest are cut on sentence boundaries into clips of 15 to 120 seconds. A stream with almost no speech is watched by the model instead.'],
+  ['AI picks the moments worth posting', 'The stream is transcribed word by word, the AI model ranks every stretch of it for how well it plays with no context, and the strongest are cut on sentence boundaries into clips of 15 to 120 seconds. A stream with almost no speech is watched by the model instead.'],
   ['Vertical clips, ready to post', 'Each clip is reframed to 9:16 (facecam stacked under gameplay, IRL footage tracked and steadied), captioned and given a hook. Post to TikTok, YouTube Shorts and Instagram Reels, or download.'],
 ]
 
@@ -1245,7 +1245,7 @@ main picture across the top and the webcam enlarged below.</p>
 talking, decided from mouth activity normalised per speaker, and a small push
 in on the beats of the audio.</p>
 <p>The layout choice itself comes from twelve stills of the video, sent to
-Gemini at 1024 pixels with a closed question, rather than the whole video: on
+the AI model at 1024 pixels with a closed question, rather than the whole video: on
 a hand-labelled set of 48 clips that gets the layout right 92 to 96% of the
 time, and costs the same whether the source is ten minutes or three hours.</p>
 
@@ -1320,7 +1320,7 @@ ${sources([
 
 const sermonSteps = [
   ['Paste the service replay', 'Copy the link of the YouTube or Facebook Live replay (or Vimeo, or upload the recording from your stream computer). Use "clip only part of it" to mark where the sermon starts and ends, so the songs and announcements stay out.'],
-  ['The AI finds the moments in the message', 'The sermon is transcribed word by word, and Gemini ranks every stretch of it for how well it would land with someone who was not in the room: a story, a single clear point, a line people would repeat. The strongest are cut on sentence boundaries.'],
+  ['The AI finds the moments in the message', 'The sermon is transcribed word by word, and the AI model ranks every stretch of it for how well it would land with someone who was not in the room: a story, a single clear point, a line people would repeat. The strongest are cut on sentence boundaries.'],
   ['Captioned vertical clips for the week', 'Each clip comes back 9:16, following the preacher across the platform, with captions and a hook. Fix the spelling of names in the caption editor, then schedule them across the week to YouTube Shorts, Instagram Reels and TikTok, or download them.'],
 ]
 
@@ -1378,7 +1378,7 @@ removes the guesswork.</p>
 <p>A clip on someone's phone has to make sense with no context: they did not
 hear the reading, the series title or the first point. The scoring is built
 for exactly that. The transcript is split into windows of about 90 seconds
-and Gemini scores every one on hook strength, emotional payload and how well it
+and the AI model scores every one on hook strength, emotional payload and how well it
 stands alone; the best go to a second pass that cuts each clip on sentence
 boundaries, 15 to 120 seconds long by default. In practice the passages that win
 are a story told in full, one clear point stated plainly, a question put to the

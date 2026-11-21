@@ -70,7 +70,7 @@ const autoClip = () => ({
 <ol>
 <li><strong>Transcribe.</strong> The audio is transcribed with word-level timestamps, so every clip can start and end on a word.</li>
 <li><strong>Find the cuts.</strong> Scene detection marks where the picture changes.</li>
-<li><strong>Score the moments.</strong> Google Gemini reads the transcript and rates stretches of 15 to 120 seconds on whether they make sense alone and hold attention, then keeps the 3 to 15 best.</li>
+<li><strong>Score the moments.</strong> the AI model reads the transcript and rates stretches of 15 to 120 seconds on whether they make sense alone and hold attention, then keeps the 3 to 15 best.</li>
 <li><strong>Reframe to 9:16.</strong> Face tracking keeps the speaker in the frame; screen recordings and two-person shots get their own layouts.</li>
 <li><strong>Subtitle and title.</strong> Captions are burned in from the transcript and each clip gets a hook and a title.</li>
 </ol>

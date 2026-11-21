@@ -699,7 +699,7 @@ def _detect_language(text):
     """Parakeet doesn't report a language; classify the transcribed text.
 
     py3langid is pure-Python and returns ISO 639-1 codes compatible with the
-    whisper codes the pipeline expects (thumbnail titles, Gemini prompts).
+    whisper codes the pipeline expects (thumbnail titles, the AI model prompts).
     """
     sample = (text or "").strip()
     if len(sample) < 20:

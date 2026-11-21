@@ -1,7 +1,7 @@
 # Remote CPU worker (docs/architecture/remote-worker.md). Runs worker.py from
 # the CPU image on a host without a GPU; it only calls the API, nothing calls it.
 #
-#   WORKER_API_URL=https://api.example.com WORKER_TOKEN=... GEMINI_API_KEY=... \
+#   WORKER_API_URL=https://api.example.com WORKER_TOKEN=... OPENROUTER_API_KEY=... \
 #     docker compose -f docker-compose.worker.yml up -d --build
 #
 # The network below is internal to this compose project. Add host firewall
@@ -19,7 +19,7 @@ services:
     environment:
       WORKER_API_URL: ${WORKER_API_URL:?set WORKER_API_URL}
       WORKER_TOKEN: ${WORKER_TOKEN:?set WORKER_TOKEN}
-      GEMINI_API_KEY: ${GEMINI_API_KEY:?set GEMINI_API_KEY}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?set OPENROUTER_API_KEY}
       WORKER_SLOTS: ${WORKER_SLOTS:-4}
       TRANSCRIBE_BACKEND: ${TRANSCRIBE_BACKEND:-parakeet}
       AUTO_LAYOUT: ${AUTO_LAYOUT:-1}

@@ -10,12 +10,12 @@ and nothing else). Without `layouts` the deployment env decides. The dashboard
 exposes it under advanced options ("vertical layout": auto / split / screencast
 / none, `MediaInput.jsx`, remembered in `localStorage.os_layout`).
 
-`auto` enables `layout_picker.py`: **one** Gemini call per source video (not per
+`auto` enables `layout_picker.py`: **one** the AI model call per source video (not per
 clip) choosing between `none` / `screencast` / `split`. On a hand-labelled
 48-clip corpus it scores 92-96% across passes with 0-1 false positives on the
 clips that must not be touched.
 
-**It sends 12 frames at 1024px, not the video.** Gemini bills video at ~300
+**It sends 12 frames at 1024px, not the video.** the AI model bills video at ~300
 tokens per second: an hour of source is ~1.08M tokens (past a 1M window) and a
 1-2 GB upload to get one word back. Twelve frames cost ~3k tokens **whatever the
 source length**. Resolution matters and frame count does not: at 640px a
@@ -43,7 +43,7 @@ strip). `split_layout`'s own per-scene guards (below) decide each scene.
 A re-uploaded TV show often carries its own subtitles in the picture; burning
 ours on top gave two text layers, theirs cut off at the sides by the 9:16 crop.
 When the job captions (`AUTO_CAPTIONS` not `0`) and the source is not vertical,
-one Gemini call on the picker's 12 stills asks, per frame, for the top of the
+one the AI model call on the picker's 12 stills asks, per frame, for the top of the
 subtitle text or null (logos, tickers, lower-thirds and scene text excluded).
 Present in at least 40% of the frames and starting below 75% of the height →
 `source_subtitle_band` in the job metadata, and `main.render_clip` trims that
@@ -59,10 +59,10 @@ on a clip whose meaning is on screen they summarise the video's topic instead of
 naming what is shown. After the render, if the `<clip>.layout.json` sidecar says
 at least 25% of the clip is `screencast` / `wide` / `inset` (plus `general` when
 the layout picker called the video a screencast), three frames from those
-stretches at 1024px plus the clip's own words go to Gemini (`GroundedHook`) and
+stretches at 1024px plus the clip's own words go to the AI model (`GroundedHook`) and
 `viral_hook_text` / `video_title_for_youtube_short` are rewritten in place before
 `auto_hook_clip` burns them; the originals stay under `hook_grounding.before`.
-Gemini-only (frames): with just a local LLM it logs one line and keeps the
+the AI model-only (frames): with just a local LLM it logs one line and keeps the
 transcript hook. `HOOK_GROUNDING=0` disables it. The detail prompt also carries
 the rule "about this moment, not the video".
 
@@ -118,7 +118,7 @@ width, so an explicit GENERAL override on a portrait clip cannot shrink it.
   or the picker) but `reframe_v2.render` never got any content ranges, so every
   screen tutorial rendered GENERAL/TRACK, even when forced. Now each clip asks
   (`reframe_v2.screen_ranges` → `screencast_layout.detect_content_ranges`): one
-  1024px still per shot, one Gemini call per clip, a closed choice per shot
+  1024px still per shot, one the AI model call per clip, a closed choice per shot
   (`screen` / `beside` / `camera`, `gemini_worker.SHOT_CONTENT_PROMPT`) plus the
   horizontal **reading area** of a screen. `camera` shots keep the face
   classifier's verdict. `beside` (width 0.7) stacks **only the content
@@ -128,7 +128,7 @@ width, so an explicit GENERAL override on a portrait clip cannot shrink it.
   beside them is not stacked. A `screen` or `beside` scene with a person
   standing in it at full size (YOLO body at least 60% of the frame height,
   `_filmed_person`) is a filmed room, a whiteboard or TV behind the presenter,
-  and keeps the face classifier's verdict: Gemini answers `beside` or
+  and keeps the face classifier's verdict: the AI model answers `beside` or
   `screen` for that shot whatever the prompt says (measured 17-oct-2026), while
   a presenter laid over a screen measures 22-40% of the height. `screen` (width 1.0: the presenter, if any, is
   composited on top of it, and stacking would show it twice) gets WIDE, cropped
@@ -158,7 +158,7 @@ width, so an explicit GENERAL override on a portrait clip cannot shrink it.
   tokens for a 37-min tutorial.
 - **INSET** (`camera_inset.py`): full-width screen on top, the enlarged webcam
   box below, for a single source with the camera composited in a corner (OBS,
-  stream VODs). Chained after the `screencast` decision, **not** asked of Gemini
+  stream VODs). Chained after the `screencast` decision, **not** asked of the AI model
   (offered as a fourth option it answered `screencast` and overall accuracy
   dropped). The geometric detector needs three filters: a **small** subject,
   **horizontally off-centre** (a talking-head face is centred even when high),
@@ -181,3 +181,13 @@ width, so an explicit GENERAL override on a portrait clip cannot shrink it.
 
 - `SmoothedCameraman`: stabilized camera movement with safe-zone logic (prevents jitter).
 - `SpeakerTracker`: prevents rapid speaker switching, handles temporary occlusions.
+
+## Live streams: webcam on top (`stream_layout.py`)
+
+Live clips (`IS_STREAM_SOURCE=1`) take their own layout. `main.process_video_to_vertical` tries it first, and it is used only when a webcam is found; in every other case the normal reframe runs, and `reframe_v2` and `camera_inset` are unchanged.
+
+- Top 30%: the whole webcam, fitted into the band with its aspect kept. The space left over is a blurred copy of the same webcam.
+- Bottom 70%: the centre of the source at the band's aspect, as a fixed crop. Nothing tracks, so the gameplay does not move.
+- Finding the webcam, detection first: MediaPipe faces (the pipeline's own detector) on full-resolution frames, 40 frames spread over the clip. The camera's face is the one that recurs most in the outer 40% of the frame (left or right, where a webcam sits), seen in at least 3 frames and 8% of them. Its sides are the outermost edges that persist across the frames around that face (Canny 25/75 on the 1280 px frames). A box calibrated for the channel (`WEBCAM_BOX`, from `webcam_boxes.json`) is the fallback when detection finds no webcam, or when the detector fails.
+- Checked on one real live highlight, with no calibration: detected 1444,153,468x302 against 1447,156,465x296 calibrated by hand. The thresholds come from that clip and from synthetic tests; other overlays may need tuning.
+- Not covered: a webcam in the middle of the frame also shows inside the gameplay band, because the centre crop has no mask. Corner webcams are not affected.

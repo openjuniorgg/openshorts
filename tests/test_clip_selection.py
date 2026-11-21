@@ -11,7 +11,6 @@ from clip_selection import (
     shortlist_target,
     snap_clip_to_words,
     compact_words,
-    lookup_model_prices,
     trim_to_best,
     vision_segments,
 )
@@ -66,7 +65,7 @@ class TestSnapClipToWords:
 
     def test_start_snaps_into_silence_before_word(self):
         words = self._words()
-        # Gemini proposes 10.3 — nearest word start is 10.0, gap before is 9.6->10.0
+        # The model proposes 10.3 — nearest word start is 10.0, gap before is 9.6->10.0
         start, end = snap_clip_to_words(10.3, 30.1, words, 80.0)
         assert 9.8 <= start <= 10.0  # word start minus half-gap lead
         # end 30.1 -> nearest word end 29.6 plus tail
@@ -89,19 +88,6 @@ class TestSnapClipToWords:
         words = self._words()
         start, end = snap_clip_to_words(0.0, 59.9, words, 80.0)
         assert end - start <= 60.0
-
-
-class TestPricing:
-    def test_known_models(self):
-        assert lookup_model_prices("gemini-2.5-flash") == (0.30, 2.50)
-        assert lookup_model_prices("gemini-3-flash-preview") == (0.50, 3.00)
-
-    def test_prefix_match_with_suffix(self):
-        assert lookup_model_prices("gemini-2.5-flash-002") == (0.30, 2.50)
-
-    def test_unknown_model_returns_none(self):
-        assert lookup_model_prices("gpt-9-mega") is None
-        assert lookup_model_prices(None) is None
 
 
 class TestCompactWords:
@@ -158,7 +144,7 @@ class TestClipCountTargets:
 
 class TestDetailPromptCarriesTheCount:
     def test_template_formats_with_the_targets(self):
-        gw = pytest.importorskip("gemini_worker")
+        gw = pytest.importorskip("ai_prompts")
         low, high = clip_count_targets(5)
         prompt = gw.DETAIL_PROMPT_TEMPLATE.format(
             video_duration=300, language="es", min_clips=low, max_clips=high,
@@ -288,7 +274,7 @@ class TestScoreBatches:
             assert sum(sizes) == n
 
     def test_batch_count_is_never_worse_than_the_naive_walk(self):
-        # Balancing must not cost extra Gemini calls.
+        # Balancing must not cost extra model calls.
         for n in range(1, 60):
             naive = -(-n // 8)
             assert len(score_batches(self._windows(n), 8)) == naive

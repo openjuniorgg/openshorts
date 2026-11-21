@@ -32,7 +32,7 @@ Two people on camera? OpenShorts stacks them instead of shrinking the wide shot,
 |---|---|---|
 | **Price** | Free forever, MIT | Free plan, paid from $12/mo |
 | **Speed** | 5 to 8 min per 8-min video on CPU | About 50s on our NVIDIA GPU |
-| **API keys** | Bring your own Gemini, ElevenLabs, fal.ai | Gemini included, nothing to set up |
+| **API keys** | Bring your own OpenRouter key (or run Ollama), ElevenLabs, fal.ai | OpenRouter key included, nothing to set up |
 | **Watermark / limits** | None, ever | Watermark and 20 min/mo on the free plan, neither on paid |
 | **Auto-posting** | With your own Upload-Post account | Paid plans: connect TikTok, Instagram, YouTube, Facebook, LinkedIn, Threads and Bluesky once, post or schedule from the app |
 | **Autopilot** | Not included | Paid plans: every new video on your channel becomes scheduled shorts |
@@ -97,14 +97,14 @@ Add OpenShorts to Claude or ChatGPT with one URL and ask for clips in plain lang
 ## Key Features
 
 ### Clip Generator
-- **Viral Moment Detection**: Google Gemini 3.1 Flash-Lite ranks the transcript and scene boundaries to pick 3-15 moments of 15-120 seconds, each with a virality score
-- **Runs fully local if you want**: point `LLM_BASE_URL` at Ollama, LM Studio, vLLM or any OpenAI-compatible server and the moment picker runs on your own model, no Google key needed (see [Run without a Google key](#6-run-without-a-google-key-local-llm-optional))
-- **Smart 9:16 Reframing**: per scene: TRACK (MediaPipe + YOLOv8 face tracking), GENERAL (blurred background), SPLIT (two speakers stacked, captions on the seam) and SCREENCAST (screen over presenter); the layout is picked per video by Gemini or forced from the dashboard
+- **Viral Moment Detection**: an AI model (OpenRouter, or Ollama on your own machine) ranks the transcript and scene boundaries to pick 3-15 moments of 15-120 seconds, each with a virality score
+- **Runs fully local if you want**: choose Ollama in Settings and every model call runs on a model on your own machine, no key needed (see [Choose a model](#6-choose-a-model-openrouter-or-ollama))
+- **Smart 9:16 Reframing**: per scene: TRACK (MediaPipe + YOLOv8 face tracking), GENERAL (blurred background), SPLIT (two speakers stacked, captions on the seam) and SCREENCAST (screen over presenter); the layout is picked per video by the AI model or forced from the dashboard
 - **Captions**: faster-whisper (or Parakeet on GPU) with word-level timestamps, several caption styles, burned into the clip
 - **Clip editor**: word-level cuts, extra segments, framing changes and fast re-renders
 - **Hook overlays**: an opening line written from what is said in the clip, editable in text, style, font and position
 - **AI Voice Dubbing**: ElevenLabs, 30+ languages with voice cloning (bring your own ElevenLabs key, on the Cloud too)
-- **AI Video Effects**: Gemini-generated FFmpeg filters
+- **AI Video Effects**: model-generated FFmpeg filters
 
 ### Social Auto-Publishing (via [Upload-Post](https://www.upload-post.com))
 - **Post a clip to TikTok, Instagram, YouTube, Facebook, LinkedIn, Threads and Bluesky at once**, or schedule it for any date and time
@@ -184,14 +184,14 @@ Self-hosting OpenShorts is free. You provide the machine and you only pay for th
 
 | Service | Free Tier | Paid Cost | Used For |
 |---------|-----------|-----------|----------|
-| **Google Gemini** | Free trial with generous limits | < $0.01 per 10-min video | Viral moment detection, script generation, web research |
-| **Local LLM (Ollama, LM Studio, vLLM...)** | **Free, your hardware** | $0 | Viral moment detection instead of Gemini (`LLM_BASE_URL`) |
+| **OpenRouter** (pay per use, any model) | Pay as you go | Depends on the model you choose | Viral moment detection, script generation, web research |
+| **Ollama (your own machine)** | **Free, your hardware** | $0 | Every model call, including the vision steps (choose Ollama in Settings) |
 | **fal.ai** | Pay-per-use | ~$0.50-1.50 per AI Short | Actor generation, talking head video, lip-sync |
 | **ElevenLabs** | Free tier available | Pay-per-use | Voiceover, voice dubbing |
 | **Upload-Post** | **10 free uploads/month** to all networks (no credit card) | Pay-per-use | Auto-publishing to TikTok, Instagram, YouTube |
 | **AWS S3** | Optional | ~$0.023/GB | Cloud backup for clips and gallery |
 
-**Bottom line:** You can clip videos for practically free with Gemini, and publish 10 videos/month to all social networks at zero cost with Upload-Post.
+**Bottom line:** You can clip videos cheaply through OpenRouter, or for free with Ollama on your own hardware, and publish 10 videos/month to all social networks at zero cost with Upload-Post.
 
 **Don't want to run any of that?** [openshorts.app](https://www.openshorts.app/) is the same software on our hardware: our NVIDIA GPU clips an 8-minute video in about 50 seconds instead of the 5 to 8 minutes it takes on a typical CPU, the Gemini key is included, and paid plans add auto-posting and Autopilot with nothing to set up. The free plan clips your first video whole up to 60 minutes, then 20 minutes a month, with a watermark and no credit card; paid plans start at $12/mo for 100 minutes without watermark.
 
@@ -200,7 +200,7 @@ Self-hosting OpenShorts is free. You provide the machine and you only pay for th
 ## Requirements
 
 - **Docker & Docker Compose**
-- **Google Gemini API Key** ([Free — get it here](https://aistudio.google.com/app/apikey)) — required for all AI features
+- **OpenRouter API key** ([get one here](https://openrouter.ai/keys)) — required for the AI features, unless you run Ollama (choose it in Settings)
 - **fal.ai API Key** ([Pay-per-use](https://fal.ai)) — required for AI Shorts (actor generation, video, lip-sync)
 - **ElevenLabs API Key** ([Free tier](https://elevenlabs.io)) — required for voiceover/dubbing
 - **Upload-Post API Key** ([free tier](https://upload-post.com)) — required for direct social posting
@@ -229,7 +229,7 @@ docker compose up --build
 ### 4. Open Dashboard
 Navigate to **`http://localhost:5175`**
 
-1. Go to **Settings** and enter your API keys (Gemini, fal.ai, ElevenLabs, Upload-Post)
+1. Go to **Settings** and enter your API keys (OpenRouter, fal.ai, ElevenLabs, Upload-Post)
 2. **Clip Generator**: Upload a long-form video to generate viral shorts
 3. **AI Shorts**: Describe your product or paste a URL to generate UGC marketing videos
 4. **YouTube Studio**: Generate thumbnails, titles, and descriptions for YouTube
@@ -284,34 +284,39 @@ The backend log on the first job reports the chosen encoder and transcription de
 
 ---
 
-### 6. Run without a Google key (local LLM, optional)
+### 6. Choose a model: OpenRouter or Ollama
 
-The only cloud call in the clip pipeline is the moment picker: it sends the
-transcript (never the video) to Gemini. Point it at any OpenAI-compatible
-server instead and the whole pipeline stays on your box:
+Every model call in the pipeline (clip picking, titles, layouts, hooks, the AI editor,
+thumbnails) uses the provider and the models you choose in **Settings > AI provider**.
+Nothing is chosen for you: pick OpenRouter (cloud, with your key) or Ollama (a model
+already downloaded on your machine, no key), then pick the model. Both can be
+configured; each run uses the one you chose.
+
+API and MCP callers name the same choice in the request (`X-AI-Provider`,
+`X-AI-Model`). A server may also name a fallback in `.env` for
+requests that name none. There is no built-in model:
 
 ```bash
-# .env
-LLM_BASE_URL=http://host.docker.internal:11434/v1   # Ollama on the host
-LLM_MODEL=qwen2.5:14b                                # any chat model that follows instructions
-# LLM_API_KEY=...                                    # only if your server checks one (vLLM --api-key, OpenRouter)
+# .env (optional server fallback)
+AI_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434          # from Docker: http://host.docker.internal:11434
+OLLAMA_MODEL=<a model you downloaded>           # a vision model: layouts and silent videos look at frames
+OLLAMA_NUM_CTX=32768                             # the context each call gets
 ```
 
-Works with Ollama, LM Studio, vLLM, llama.cpp server, LocalAI and OpenRouter.
-The dashboard stops asking for a Gemini key when this is set. Two things to
-know:
+Two things to know:
 
-- **Context length.** A scoring call carries three transcript windows
-  (~2-3k tokens) and the detail call up to ten (~5k on a long podcast).
-  Ollama defaults to a 4096-token context and truncates silently, so run it
-  with `OLLAMA_CONTEXT_LENGTH=16384` (or set `num_ctx` in a Modelfile); raise
-  `LLM_SCORE_BATCH` above 3 only if your context allows it. 7-8B models
-  return valid JSON reliably, 3B ones do not.
-- **What still needs Gemini.** Anything that has to look at frames: the
-  automatic layout picker (`AUTO_LAYOUT`), the on-screen content detector
-  and silent videos (no speech to clip by). Without a Gemini key those fall
-  back to the plain face-tracking crop, and a silent video fails with a
-  message that says so. Add a key alongside `LLM_BASE_URL` and you get both.
+- **Context length.** A layout call carries 12 frames, and the scoring calls
+  carry transcript windows. The app asks Ollama for `OLLAMA_NUM_CTX` on every
+  call, because a server default is shorter and truncates silently. If an
+  answer comes back cut, raise it. 7-8B models return valid JSON reliably, 3B
+  ones do not.
+- **Vision.** The layout picker, the screen check, the hook grounding and
+  silent videos send still frames, so use a vision model. Settings marks which
+  downloaded models read pictures. Without one those steps fall back to the
+  plain face crop, and a silent video fails with a message that says why.
+
+Thumbnail pictures are off in this build: no image model is offered.
 
 ## Technical Pipeline
 
@@ -319,15 +324,15 @@ know:
 1. **Ingest** — YouTube URL (yt-dlp) or local upload
 2. **Transcribe** — faster-whisper (or Parakeet on GPU) with word-level timestamps
 3. **Detect** — PySceneDetect for scene boundaries
-4. **Analyze** — Gemini identifies 3-15 viral moments (15-120s each)
+4. **Analyze** — the AI model identifies 3-15 viral moments (15-120s each)
 5. **Extract** — FFmpeg precise clip cutting
 6. **Reframe** — AI vertical cropping with subject tracking
 7. **Effects** — Subtitles, hooks, AI video effects
 8. **Publish** — S3 backup + Upload-Post social distribution
 
 ### AI Shorts
-1. **Analyze** — Website scraping + Gemini web research (or manual description)
-2. **Script** — Gemini generates viral scripts with segments
+1. **Analyze** — Website scraping + web research through OpenRouter (or manual description; Ollama skips the research)
+2. **Script** — the AI model generates viral scripts with segments
 3. **Actor** — Flux 2 Pro portrait generation (or gallery/upload)
 4. **Voice** — ElevenLabs TTS voiceover
 5. **Video** — Hailuo 2.3 Fast img2video + VEED Lipsync (Low Cost) or Kling Avatar v2 (Premium)
@@ -431,7 +436,7 @@ lives in [`examples/n8n/`](examples/n8n/).
 |-------|-----------|
 | Backend | Python 3.11, FastAPI, google-genai, faster-whisper, ultralytics (YOLOv8), mediapipe, opencv-python, yt-dlp, FFmpeg, httpx |
 | Frontend | React 18, Vite 4, Tailwind CSS 3.4 |
-| AI APIs | Google Gemini, fal.ai (Flux, Hailuo, VEED, Kling), ElevenLabs |
+| AI APIs | OpenRouter or Ollama, fal.ai (Flux, Hailuo, VEED, Kling), ElevenLabs |
 | Infrastructure | Docker + Docker Compose, AWS S3 |
 | Publishing | Upload-Post API (TikTok, Instagram, YouTube) |
 
@@ -448,15 +453,18 @@ lives in [`examples/n8n/`](examples/n8n/).
 | `AWS_S3_BUCKET` | Private bucket for clip backup |
 | `AWS_S3_PUBLIC_BUCKET` | Public bucket for gallery/avatars |
 | `MAX_CONCURRENT_JOBS` | Concurrent processing limit (default: 5) |
-| `LLM_BASE_URL` | OpenAI-compatible server for the moment picker (Ollama, vLLM, LM Studio...). Set it and the Gemini key becomes optional |
-| `LLM_MODEL` | Model name on that server (default `llama3.1:8b`) |
-| `LLM_API_KEY` | Bearer token for that server, if it checks one |
-| `LLM_SCORE_BATCH` | Transcript windows per scoring call (default 3 local, 8 Gemini) |
+| `AI_PROVIDER` | `openrouter` or `ollama`: the server's fallback for a request that names no provider. The user chooses in Settings; nothing is preselected |
+| `OPENROUTER_API_KEY` | OpenRouter key for the server (self-host; the dashboard can send its own) |
+| `OPENROUTER_MODEL` | OpenRouter model, the server's fallback for a request that names none. No default |
+| `OLLAMA_MODEL` | Ollama model, the server's fallback for a request that names none. No default; use a vision model for layouts and silent videos |
+| `OLLAMA_NUM_CTX` | Context window per Ollama call (default 32768) |
+| `AI_SCORE_BATCH` | Transcript windows per scoring call (default 8 for OpenRouter, 3 for Ollama) |
+| `AI_TIMEOUT` | Seconds one model call may take (default 600) |
 
 **Client-side (encrypted in localStorage):**
 | Key | Description |
 |-----|------------|
-| `GEMINI_API_KEY` | Google Gemini — required unless `LLM_BASE_URL` is set (then only for layout picking and silent videos) |
+| `OPENROUTER_API_KEY` | OpenRouter key, when OpenRouter is chosen (it can also be typed in Settings) |
 | `FAL_KEY` | fal.ai — required for AI Shorts |
 | `ELEVENLABS_API_KEY` | ElevenLabs — required for voiceover/dubbing |
 | `UPLOAD_POST_API_KEY` | Upload-Post — required, for social posting |

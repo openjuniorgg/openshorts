@@ -1,31 +1,10 @@
 """
-Pure helpers for the Gemini clip-selection pipeline.
+Pure helpers for the clip-selection pipeline.
 
-Standard-library only so both main.py and gemini_worker.py can import it and
-the logic stays unit-testable without the heavy video dependencies.
+Standard-library only so main.py and ai_provider can import it and the logic
+stays unit-testable without the heavy video dependencies.
 """
 import math
-
-# USD per 1M tokens (input, output incl. thinking), from ai.google.dev pricing.
-MODEL_PRICES = {
-    "gemini-3.5-flash": (1.50, 9.00),
-    "gemini-3.1-flash-lite": (0.25, 1.50),
-    "gemini-3-flash-preview": (0.50, 3.00),
-    "gemini-2.5-flash-lite": (0.10, 0.40),
-    "gemini-2.5-flash": (0.30, 2.50),
-    "gemini-2.0-flash": (0.10, 0.40),  # deprecated (shut down 2026-06-01)
-}
-
-
-def lookup_model_prices(model_name):
-    """Longest-prefix match against MODEL_PRICES; None if unknown."""
-    name = str(model_name or "").lower()
-    best_key = None
-    for key in MODEL_PRICES:
-        if name.startswith(key) and (best_key is None or len(key) > len(best_key)):
-            best_key = key
-    return MODEL_PRICES[best_key] if best_key else None
-
 
 def clip_count_targets(n_windows):
     """How many clips to ask the detail pass for, given the shortlist size.
@@ -169,7 +148,7 @@ def vision_segments(video_duration, segment_seconds, max_segments):
     """Split a silent source into near-equal ``(start, end)`` stretches for
     the vision pass, each at most ``segment_seconds`` long.
 
-    The vision pass sends Gemini the footage itself at ~300 tokens/second, so
+    The vision pass sends the AI model the footage itself at ~300 tokens/second, so
     an hour (~1.08M tokens) no longer fits a 1M-token window and a silent
     multi-hour capture failed at the model. Near-equal stretches, not fixed
     ones: a 41-minute source split at 40 minutes would leave a one-minute
@@ -330,7 +309,7 @@ def snap_clip_to_words(start, end, words, video_duration,
                        min_duration=15.0, max_duration=60.0,
                        search_window=1.5, max_lead=0.35, max_tail=0.45):
     """
-    Snap Gemini-proposed clip boundaries onto real word boundaries plus a bit
+    Snap the AI model-proposed clip boundaries onto real word boundaries plus a bit
     of the surrounding silence. LLMs are bad at millisecond arithmetic; the
     word-level timestamps are ground truth, so cuts land in pauses instead of
     mid-word.

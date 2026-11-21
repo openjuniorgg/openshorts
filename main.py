@@ -21,15 +21,14 @@ from tqdm import tqdm
 import yt_dlp
 import mediapipe as mp
 # import whisper (replaced by faster_whisper inside function)
-from google import genai
-from google.genai import types as genai_types
 
 import frame_sampler
 import gpu_decode
-import gemini_worker
+import ai_prompts
+import ai_provider
+import vision_frames
 import hook_grounding
 import layout_picker
-import llm_backend
 import yt_account
 import twitch_signals
 from clip_selection import (build_transcript_windows, clip_count_targets,
@@ -43,8 +42,6 @@ from dotenv import load_dotenv
 import json
 from jsonfile import write_json_atomic
 
-import warnings
-warnings.filterwarnings("ignore", category=UserWarning, module='google.protobuf')
 
 if sys.platform == "win32":
     for _base in (
@@ -65,45 +62,6 @@ load_dotenv()
 
 # --- Constants ---
 ASPECT_RATIO = 9 / 16
-
-GEMINI_PROMPT_TEMPLATE = """
-You are a senior short-form video editor. Read the ENTIRE transcript and word-level timestamps to choose the 3–15 MOST VIRAL moments for TikTok/IG Reels/YouTube Shorts. Each clip must be between 15 and 120 seconds long.
-
-⚠️ FFMPEG TIME CONTRACT — STRICT REQUIREMENTS:
-- Return timestamps in ABSOLUTE SECONDS from the start of the video (usable in: ffmpeg -ss <start> -to <end> -i <input> ...).
-- Only NUMBERS with decimal point, up to 3 decimals (examples: 0, 1.250, 17.350).
-- Ensure 0 ≤ start < end ≤ VIDEO_DURATION_SECONDS.
-- Each clip between 15 and 120 s (inclusive).
-- Prefer starting 0.2–0.4 s BEFORE the hook and ending 0.2–0.4 s AFTER the payoff.
-- Use silence moments for natural cuts; never cut in the middle of a word or phrase.
-- STRICTLY FORBIDDEN to use time formats other than absolute seconds.
-
-VIDEO_DURATION_SECONDS: {video_duration}
-
-TRANSCRIPT_TEXT (raw):
-{transcript_text}
-
-WORDS_JSON (array of {{w, s, e}} where s/e are seconds):
-{words_json}
-
-STRICT EXCLUSIONS:
-- No generic intros/outros or purely sponsorship segments unless they contain the hook.
-- No clips < 15 s or > 120 s.
-
-OUTPUT — RETURN ONLY VALID JSON (no markdown, no comments). Order clips by predicted performance (best to worst). In the descriptions, ALWAYS include a CTA like "Follow me and comment X and I'll send you the workflow" (especially if discussing an n8n workflow):
-{{
-  "shorts": [
-    {{
-      "start": <number in seconds, e.g., 12.340>,
-      "end": <number in seconds, e.g., 37.900>,
-      "video_description_for_tiktok": "<description for TikTok oriented to get views>",
-      "video_description_for_instagram": "<description for Instagram oriented to get views>",
-      "video_title_for_youtube_short": "<title for YouTube Short oriented to get views 100 chars max>",
-      "viral_hook_text": "<SHORT punchy text overlay (max 10 words) with 1-2 fitting emojis. MUST BE IN THE SAME LANGUAGE AS THE VIDEO TRANSCRIPT. Examples: 'POV: You realized... 😳', 'Did you know? 🤯', 'Stop doing this! 🚫'>"
-    }}
-  ]
-}}
-"""
 
 # Load the YOLO model once (Keep for backup or scene analysis if needed)
 # YOLO_MODEL_PATH lets deployments point at a pre-downloaded weights file so a
@@ -1486,7 +1444,7 @@ def auto_caption_clip(clip_path, transcript, clip_start, clip_end, split_ranges=
 
 
 def auto_hook_clip(clip_path, clip, captions=None, mark=False):
-    """Burn the clip's Gemini hook text as a DERIVED file (AUTO_HOOK=1).
+    """Burn the clip's hook text as a DERIVED file (AUTO_HOOK=1).
 
     Writes ``hooked_<ts>_<clip filename>`` next to the canonical clip, exactly
     like captions write ``subtitled_<ts>_...``: the canonical stays clean, so
@@ -1601,7 +1559,7 @@ def pro_clip(clip_path, clip, transcript):
     try:
         out_name, updates = pro_mode.convert(
             clip_path, os.path.basename(clip_path), clip, transcript, wait=wait,
-            api_key=os.getenv("GEMINI_API_KEY"), hook_seconds=hook_seconds,
+            hook_seconds=hook_seconds,
             caption_style=_subs.CAPTION_PRESETS["cine"])
     except Exception as e:
         print(f"   ℹ️ Pro mode skipped ({type(e).__name__}: {e}) — clip ships as it is.")
@@ -1800,6 +1758,20 @@ def process_video_to_vertical(input_video, final_output_video, aspect_ratio=ASPE
     engine only — the v1 loop below has no layout concept beyond its own
     classifier).
     """
+    # Live streams: the streamer's webcam on top (the whole camera, the top 30%) and the centre
+    # of the gameplay below. Only when a webcam is found and nothing was pinned by hand; in every
+    # other case the normal reframe runs, exactly as before.
+    if (os.environ.get("IS_STREAM_SOURCE") == "1" and not force_strategy and not crop_overrides
+            and abs(aspect_ratio - ASPECT_RATIO) < 1e-9):
+        try:
+            import stream_layout
+            if stream_layout.render_clip(input_video, final_output_video):
+                if watermark:
+                    apply_watermark(final_output_video)
+                return True
+        except Exception as e:
+            print(f"   ⚠️ Stream layout failed ({type(e).__name__}: {e}) — using the normal reframe.")
+
     # v2 engine: analyze downscaled, render natively in ffmpeg. Any failure
     # falls back to the v1 frame loop below so a v2 edge case can't kill jobs.
     if os.environ.get("REFRAME_ENGINE", "v2").strip().lower() != "v1":
@@ -2174,100 +2146,78 @@ def transcribe_video(video_path, slot_timeout=None):
 
     return transcript
 
-def _run_gemini_stage(client, model_name, prompt, schema):
-    """One schema-enforced model call with transient-error backoff.
-    Returns (parsed_dict, cost_analysis).
+def _run_ai_stage(prompt, schema, *, images=(), temperature=0.2):
+    """One schema-checked model call with transient-error backoff. Returns (parsed_dict, cost).
 
-    With an OpenAI-compatible server configured (``llm_backend.active()``)
-    the call goes there instead of Gemini and ``client`` is unused; the
-    retry policy is shared because a local server has the same failure
-    shapes (connection refused while the model loads, a truncated body,
-    a 5xx from a busy vLLM)."""
-    use_local = llm_backend.active()
-    config = None if use_local else genai_types.GenerateContentConfig(
-        response_mime_type="application/json",
-        response_schema=schema,
-    )
+    The same retry policy covers both providers: a connection refused while a local
+    model loads, a 429 or 5xx from OpenRouter, an empty or truncated answer, a field the
+    model left out. A content block, a missing key and a spent credit are not retried:
+    the same call fails the same way every time."""
     max_attempts = 3
     for attempt in range(1, max_attempts + 1):
         try:
-            if use_local:
-                return llm_backend.generate_json(prompt, schema, model=model_name)
-            response = client.models.generate_content(model=model_name, contents=prompt, config=config)
-            # Policy blocks are deterministic — retrying only burns quota and
-            # time, and the user deserves the real reason instead of a generic
-            # "empty response" (prod 23-jul: PROHIBITED_CONTENT on every try).
-            gemini_worker.raise_if_blocked(response)
-            # Parsing lives inside the retry loop on purpose: Gemini sometimes
-            # returns 200 with an empty body, which raises here rather than at
-            # the call. Retrying that recovered every occurrence seen in prod
-            # (22-jul-2026) — the same payload succeeds on the next attempt.
-            parsed_obj = getattr(response, "parsed", None)
-            if parsed_obj is not None:
-                parsed = parsed_obj.model_dump() if hasattr(parsed_obj, "model_dump") else parsed_obj
-            else:
-                parsed = gemini_worker._parse_json_response_text(
-                    gemini_worker._get_response_text(response))
-            return parsed, gemini_worker._calculate_cost_analysis(response, model_name)
-        except gemini_worker.GeminiBlockedError:
-            raise  # deterministic policy block — never retry
+            return ai_provider.generate_json(prompt, schema, images=images, temperature=temperature)
+        except ai_provider.AIBlockedError:
+            raise  # deterministic policy block: never retry
+        except ai_provider.AIUnavailableError:
+            raise  # no key, no credit, or the local server is not running
         except Exception as e:
             msg = str(e)
-            transient = any(tok in msg for tok in (
-                '503', 'UNAVAILABLE', '429', 'RESOURCE_EXHAUSTED',
-                '500', 'INTERNAL', 'overloaded', 'Deadline',
-                'empty response body', 'did not contain a JSON object',
-                'Failed to parse Gemini JSON response',
-                # OpenAI-compatible servers: model still loading, busy, or a
-                # small model that skipped a required field this time.
-                'ConnectError', 'ReadTimeout', 'RemoteProtocolError', '502', '504',
-                'validation error'))
+            transient = isinstance(e, (ai_provider.AIError, ValueError))
             if attempt == max_attempts or not transient:
                 raise
             wait = 5 * (2 ** (attempt - 1))
-            who = "LLM server" if use_local else "Gemini"
-            print(f"⚠️ {who} transient error (attempt {attempt}/{max_attempts}), retrying in {wait}s: {msg[:150]}")
+            print(f"⚠️ AI provider transient error (attempt {attempt}/{max_attempts}), retrying in {wait}s: {msg[:150]}")
             time.sleep(wait)
 
 
-def _run_stage_split(client, model_name, items, build_prompt, schema, key, costs, label):
-    """Run a Gemini stage over ``items``; on a policy block, bisect.
+def _run_stage_split(items, build_prompt, schema, key, costs, label, temperature=0.2):
+    """Run one AI stage over ``items``; on a content block, bisect.
 
-    Google's prompt filter (PROHIBITED_CONTENT) fires on some COMBINATIONS of
-    transcript windows that pass individually (27-aug-2026: windows 5+6 of a
-    software walkthrough blocked 3/3, each alone fine, all three models).
-    A block is deterministic for a given prompt, so instead of failing the
-    job the batch is split in halves until the offending combination is
-    isolated; a single item that still blocks is dropped with a log line.
-    Returns the merged list found under ``key`` in each response."""
+    A provider's content filter can fire on some COMBINATIONS of transcript windows
+    that pass individually (27-aug-2026: windows 5+6 of a software walkthrough blocked
+    3/3, each alone fine). A block is deterministic for a given prompt, so the batch is
+    split in halves until the offending combination is isolated; a single item that
+    still blocks is dropped with a log line. Returns the merged list found under
+    ``key`` in each answer."""
     if not items:
         return []
     prompt = build_prompt(items)
     try:
-        parsed, cost = _run_gemini_stage(client, model_name, prompt, schema)
+        parsed, cost = _run_ai_stage(prompt, schema, temperature=temperature)
         if cost:
             costs.append(cost)
         return list(parsed.get(key) or [])
-    except gemini_worker.GeminiBlockedError as e:
+    except ai_provider.AIBlockedError as e:
         if len(items) == 1:
-            print(f"   🚫 {label}: Gemini blocked window {items[0].get('id')} on its own; skipping it ({e})")
+            print(f"   🚫 {label}: the model blocked window {items[0].get('id')} on its own; skipping it ({e})")
             return []
         mid = len(items) // 2
-        print(f"   🚫 {label}: Gemini blocked a batch of {len(items)}; retrying as {mid} + {len(items) - mid}")
-        return (_run_stage_split(client, model_name, items[:mid], build_prompt, schema, key, costs, label)
-                + _run_stage_split(client, model_name, items[mid:], build_prompt, schema, key, costs, label))
+        print(f"   🚫 {label}: the model blocked a batch of {len(items)}; retrying as {mid} + {len(items) - mid}")
+        return (_run_stage_split(items[:mid], build_prompt, schema, key, costs, label, temperature)
+                + _run_stage_split(items[mid:], build_prompt, schema, key, costs, label, temperature))
+
+
+# Creative copy (hooks, titles, descriptions) runs warmer than the scoring pass.
+try:
+    DETAIL_TEMPERATURE = float(os.environ.get("AI_DETAIL_TEMPERATURE") or 0.7)
+except ValueError:
+    DETAIL_TEMPERATURE = 0.7
 
 
 def score_batch_size():
-    """Transcript windows per scoring call: ``LLM_SCORE_BATCH`` if set, else
-    8 for Gemini (1M context) and 3 for an OpenAI-compatible server."""
-    raw = os.environ.get("LLM_SCORE_BATCH", "").strip()
+    """Transcript windows per scoring call: ``AI_SCORE_BATCH`` if set, else 8 for
+    OpenRouter models (large contexts) and 3 for Ollama, whose context fills sooner."""
+    raw = os.environ.get("AI_SCORE_BATCH", "").strip()
     if raw:
         try:
             return max(1, int(raw))
         except ValueError:
             pass
-    return 3 if llm_backend.active() else 8
+    try:
+        return 3 if ai_provider.provider_name() == "ollama" else 8
+    except ai_provider.AIUnavailableError:
+        return 8
 
 
 def get_viral_clips(transcript_result, video_duration, viewer_clips=None):
@@ -2283,20 +2233,13 @@ def get_viral_clips(transcript_result, video_duration, viewer_clips=None):
     that hold them, and the hottest windows are guaranteed a shortlist slot.
     """
     language = str(transcript_result.get('language') or 'unknown')
-    if llm_backend.active():
-        # Self-hosted text model: no Google key needed for this stage.
-        client = None
-        model_name = llm_backend.model_name()
-        print(f"\U0001f916  Analyzing with local LLM at {llm_backend.base_url()} (2-pass: score → detail)...")
-    else:
-        print("\U0001f916  Analyzing with Gemini (2-pass: score → detail)...")
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            print("❌ Error: GEMINI_API_KEY not found in environment variables "
-                  "(set it, or point LLM_BASE_URL at an OpenAI-compatible server).")
-            return None
-        client = genai.Client(api_key=api_key)
-        model_name = os.environ.get("GEMINI_MODEL") or 'gemini-3.1-flash-lite'
+    if not ai_provider.configured():
+        print("❌ Error: no AI model is chosen. Pick a provider and a model in Settings, or set "
+              "AI_PROVIDER with OPENROUTER_MODEL or OLLAMA_MODEL on the server.")
+        return None
+    settings = ai_provider.resolve()
+    model_name = settings.model
+    print(f"\U0001f916  Analyzing with {settings.provider} (2-pass: score → detail)...")
     print(f"\U0001f916  Model: {model_name} | language: {language}")
 
     # Full word list — ground truth for snapping cut points.
@@ -2319,9 +2262,8 @@ def get_viral_clips(transcript_result, video_duration, viewer_clips=None):
 
         # --- Pass 1: score windows in batches, keep the highest-scoring ---
         scored = []
-        # Local models usually run with a 4-8k context (Ollama defaults to
-        # 4096 unless OLLAMA_CONTEXT_LENGTH says otherwise) and 8 windows of
-        # transcript do not fit; a silently truncated prompt scores garbage.
+        # A local model's context is finite (OLLAMA_NUM_CTX) and 8 windows of
+        # transcript may not fit; a silently truncated prompt scores garbage.
         SCORE_BATCH = score_batch_size()
         # The batches only split the work: the prompt scores every window it
         # is given and the shortlist below is the global top `target`. Letting
@@ -2346,14 +2288,13 @@ def get_viral_clips(transcript_result, video_duration, viewer_clips=None):
             return out
 
         def _score_prompt(ws):
-            return gemini_worker.SCORE_PROMPT_TEMPLATE.format(
+            return ai_prompts.SCORE_PROMPT_TEMPLATE.format(
                 video_duration=video_duration, language=language,
                 windows_json=json.dumps(_payload(ws), ensure_ascii=False))
 
         for batch in score_batches(windows, SCORE_BATCH):
             scored.extend(_run_stage_split(
-                client, model_name, batch, _score_prompt,
-                gemini_worker.ScoreResponse, "windows", costs, "score"))
+                batch, _score_prompt, ai_prompts.ScoreResponse, "windows", costs, "score"))
 
         # Shortlist the top windows; scale with duration so long videos surface
         # more candidates without exploding the detail call.
@@ -2378,16 +2319,17 @@ def get_viral_clips(transcript_result, video_duration, viewer_clips=None):
             # A split batch keeps the full clip-count band: a short list can
             # still hold the best clips, and the model returns fewer anyway.
             def build(ws):
-                return gemini_worker.DETAIL_PROMPT_TEMPLATE.format(
+                return ai_prompts.DETAIL_PROMPT_TEMPLATE.format(
                     video_duration=video_duration, language=language,
                     min_clips=lo, max_clips=hi,
                     min_secs=min_secs, max_secs=max_secs,
                     windows_json=json.dumps(_payload(ws), ensure_ascii=False))
             return build
 
-        shorts = _run_stage_split(client, model_name, shortlist,
+        shorts = _run_stage_split(shortlist,
                                   _detail_prompt_for(min_clips, max_clips),
-                                  gemini_worker.DetailResponse, "shorts", costs, "detail")
+                                  ai_prompts.DetailResponse, "shorts", costs, "detail",
+                                  temperature=DETAIL_TEMPERATURE)
 
         # The floor lived only in the prompt, and a prompt is not a contract:
         # the model regularly returned half of it and the job shipped that.
@@ -2403,9 +2345,10 @@ def get_viral_clips(transcript_result, video_duration, viewer_clips=None):
                 print(f"   Detail returned {len(shorts)} clip(s) of {min_clips}; "
                       f"asking the {len(spare)} unused window(s) for {missing} more.")
                 extra = _run_stage_split(
-                    client, model_name, spare,
+                    spare,
                     _detail_prompt_for(missing, max(missing, len(spare))),
-                    gemini_worker.DetailResponse, "shorts", costs, "detail-floor")
+                    ai_prompts.DetailResponse, "shorts", costs, "detail-floor",
+                    temperature=DETAIL_TEMPERATURE)
                 if extra:
                     shorts = sorted(shorts + extra,
                                     key=lambda s: float(s.get("start") or 0))
@@ -2453,20 +2396,24 @@ def get_viral_clips(transcript_result, video_duration, viewer_clips=None):
         if cost_analysis:
             result["cost_analysis"] = cost_analysis
         return result
-    except gemini_worker.GeminiBlockedError as e:
+    except ai_provider.AIBlockedError as e:
         # Content-policy rejection: propagate so the job fails with the real
         # reason instead of a generic "no clips found".
         print(f"🚫 {e}")
         raise
+    except ai_provider.AIUnavailableError as e:
+        # No key, no credit, or the local model is not running: say so plainly.
+        print(f"❌ {e}")
+        return None
     except Exception as e:
-        print(f"❌ Gemini Error: {e}")
+        print(f"❌ AI provider error: {e}")
         return None
 
 
 # --- Speech too sparse to clip by transcript -------------------------------
 # The vision path used to fire only on a missing audio TRACK. A nursery-rhyme
 # video or a dashcam drive has audio, so it went through transcription, came
-# back as one segment ("Uh uh"), produced one scoring window and Gemini
+# back as one segment ("Uh uh"), produced one scoring window and the model
 # returned no clips — three failed jobs on 25-aug-2026, one user twice. Speech
 # is ~120-160 words/min; below these floors there is nothing to clip by words.
 MIN_SPEECH_WORDS_PER_MIN = float(os.environ.get("MIN_SPEECH_WORDS_PER_MIN", "5"))
@@ -2481,143 +2428,68 @@ def speech_is_sparse(transcript, duration):
     return words < MIN_SPEECH_WORDS or words / minutes < MIN_SPEECH_WORDS_PER_MIN
 
 
-# Silent footage is sent to Gemini as video (~300 tokens/s): an hour no longer
-# fits a 1M-token window. Longer sources are analysed in near-equal stretches
-# of at most VISION_SEGMENT_SECONDS, each a low-resolution proxy, and the picks
-# are merged by score. VISION_MAX_SEGMENTS bounds the spend of one job.
-VISION_SEGMENT_SECONDS = float(os.environ.get("VISION_SEGMENT_SECONDS", "2400"))
-VISION_MAX_SEGMENTS = int(os.environ.get("VISION_MAX_SEGMENTS", "8"))
+# Silent footage goes to the model as still frames, sampled across each stretch:
+# OpenRouter and Ollama take pictures, not video files. Longer sources are looked
+# at stretch by stretch (at most VISION_SEGMENT_SECONDS each), every stretch is
+# sampled to at most VISION_FRAMES_PER_CALL frames, and the picks are merged by
+# score. VISION_MAX_SEGMENTS bounds the spend of one job.
+VISION_SEGMENT_SECONDS = float(os.environ.get("VISION_SEGMENT_SECONDS", "300"))
+VISION_MAX_SEGMENTS = int(os.environ.get("VISION_MAX_SEGMENTS", "12"))
+VISION_FRAMES_PER_CALL = int(os.environ.get("VISION_FRAMES_PER_CALL", "32"))
+VISION_FRAME_WIDTH = int(os.environ.get("VISION_FRAME_WIDTH", "512"))
 
 
-def _vision_proxy(video_path, start, end, out_path):
-    """A small re-encode of [start, end] for the vision pass.
-
-    Re-encoded, not stream-copied: a copy snaps the start to the previous
-    keyframe, and every timestamp Gemini returns would then be off by up to a
-    GOP. 360p at 1 fps is what Gemini samples anyway (one frame per second),
-    so the proxy costs the model nothing in detail and keeps the upload far
-    under the Files API size limit; the mono audio stays because a silent
-    gameplay capture still has its explosions and music.
-
-    A source whose audio cannot be decoded (a broken HLS capture: the same
-    file the ASR could not read, which is why it came here) is retried
-    without audio rather than failing the job.
-    """
-    base = ["ffmpeg", "-y", "-ss", f"{start:.3f}", "-to", f"{end:.3f}", "-i", video_path,
-            "-vf", "scale=-2:360,fps=1", "-c:v", "libx264", "-preset", "veryfast",
-            "-crf", "30"]
-    res = None
-    for audio in (["-c:a", "aac", "-b:a", "48k", "-ac", "1"], ["-an"]):
-        res = subprocess.run(base + audio + [out_path], capture_output=True, text=True)
-        if res.returncode == 0 and os.path.exists(out_path) and os.path.getsize(out_path) > 0:
-            if audio == ["-an"]:
-                print(f"   ℹ️ Vision proxy {start:.0f}-{end:.0f}s: audio unreadable, sent without it.")
-            return
-    raise RuntimeError(f"vision proxy {start:.0f}-{end:.0f}s failed: "
-                       f"{(res.stderr or '').strip()[-400:]}")
+def _visual_frames(video_path, start, end, out_dir):
+    """JPEG frames of [start, end] for one vision call, each with its time from ``start``
+    (see vision_frames.sample). Returns ``(interval, [(t, jpeg_bytes), ...])``."""
+    return vision_frames.sample(video_path, start, end, out_dir,
+                                count=VISION_FRAMES_PER_CALL, width=VISION_FRAME_WIDTH)
 
 
-def _sum_costs(costs, model_name):
-    costs = [c for c in costs if c]
-    if not costs:
-        return None
-    out = {"model": model_name,
-           "price_estimated": any(c.get("price_estimated") for c in costs)}
-    for key in ("input_tokens", "output_tokens", "thinking_tokens",
-                "input_cost", "output_cost", "total_cost"):
-        out[key] = sum(c.get(key) or 0 for c in costs)
-    return out
+def _visual_pass(duration, language, min_clips, max_clips, min_secs, max_secs,
+                 interval, frames, hint=""):
+    """One vision call over the frames of one stretch. Returns ``(shorts, cost)``.
 
-
-def _viewer_hint(viewer_clips, offset, duration):
-    """Prompt lines naming what viewers clipped inside [offset, offset+duration],
-    in that file's own seconds, or "" when there is nothing to say."""
-    inside = [c for c in viewer_clips or []
-              if offset <= (c["start"] + c["end"]) / 2 < offset + duration]
-    if not inside:
-        return ""
-    inside = sorted(inside, key=lambda c: -c.get("views", 0))[:15]
-    spans = [[round(c["start"] - offset, 1), round(c["end"] - offset, 1), c.get("views", 0)]
-             for c in inside]
-    return ("\nVIEWER_CLIPS (moments the stream's live viewers clipped themselves, as "
-            "[start, end, views] in seconds of THIS video): " + json.dumps(spans) +
-            "\nTreat them as strong evidence a moment lands and cover the best of them, "
-            "but still judge what you see and keep the time contract.\n")
-
-
-def _visual_pass(client, model_name, video_path, duration, language,
-                 min_clips, max_clips, min_secs, max_secs, hint=""):
-    """One vision call over one file. Returns ``(shorts, cost)``; ``shorts``
-    are clamped to ``[0, duration]`` of THAT file. Returns ``(None, None)``
-    when Gemini could not take the file; raises GeminiBlockedError."""
-    file_upload = None
-    try:
-        file_upload = gemini_worker.upload_media(client, video_path)
-        deadline = time.time() + 180
-        while True:
-            info = client.files.get(name=file_upload.name)
-            state = str(getattr(getattr(info, "state", info), "name", "")).upper()
-            if state == "ACTIVE":
-                break
-            if state == "FAILED":
-                print("❌ Gemini could not process the video.")
-                return None, None
-            if time.time() > deadline:
-                print("❌ Gemini video processing timed out.")
-                return None, None
-            time.sleep(2)
-
-        prompt = gemini_worker.VISUAL_PROMPT_TEMPLATE.format(
-            video_duration=duration, language=language,
-            min_clips=min_clips, max_clips=max_clips,
-            min_secs=min_secs, max_secs=max_secs) + (hint or "")
-        config = genai_types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=gemini_worker.VisualResponse,
-        )
-        response = client.models.generate_content(
-            model=model_name, contents=[file_upload, prompt], config=config)
-        gemini_worker.raise_if_blocked(response)
-        parsed = json.loads(response.text)
-        clean = []
-        for s in parsed.get("shorts") or []:
-            s["start"] = max(0.0, float(s.get("start", 0)))
-            s["end"] = min(float(duration), float(s.get("end", 0)))
-            if s["end"] - s["start"] >= 1.0:
-                clean.append(s)
-        return clean, gemini_worker._calculate_cost_analysis(response, model_name)
-    finally:
-        if file_upload is not None:
-            try:
-                client.files.delete(name=file_upload.name)
-            except Exception:
-                pass
+    ``shorts`` are clamped to ``[0, duration]`` of THAT stretch, in its own seconds;
+    the caller adds the stretch's offset."""
+    labels = vision_frames.labels(frames)
+    prompt = (ai_prompts.VISUAL_PROMPT_TEMPLATE.format(
+        video_duration=duration, language=language,
+        min_clips=min_clips, max_clips=max_clips,
+        min_secs=min_secs, max_secs=max_secs, frame_seconds=interval)
+        + f"\nFRAMES (image order; timestamps in seconds from the start of this footage): {labels}\n"
+        + (hint or ""))
+    parsed, cost = _run_ai_stage(prompt, ai_prompts.VisualResponse,
+                                 images=[jpeg for _, jpeg in frames],
+                                 temperature=DETAIL_TEMPERATURE)
+    clean = []
+    for s in parsed.get("shorts") or []:
+        s["start"] = max(0.0, float(s.get("start", 0)))
+        s["end"] = min(float(duration), float(s.get("end", 0)))
+        if s["end"] - s["start"] >= 1.0:
+            clean.append(s)
+    return clean, cost
 
 
 def get_visual_clips(video_path, video_duration, language="en", viewer_clips=None):
-    """Clip a SILENT video by vision: Gemini watches the footage and picks the
-    most engaging visual moments (no transcript). Returns the same
+    """Clip a SILENT video by vision: the model looks at sampled frames of the footage
+    and picks the most engaging visual moments (no transcript). Returns the same
     {"shorts", "cost_analysis"} shape as get_viral_clips, or None.
 
-    Gemini always watches a 360p/1 fps proxy (``_vision_proxy``), never the
-    source file: a broken capture (unreadable audio, MPEG-TS in MP4) made the
-    model answer 400 INVALID_ARGUMENT, and a raw upload runs to hundreds of
-    MB. A source longer than VISION_SEGMENT_SECONDS is watched stretch by
-    stretch (``vision_segments``), and the picks are merged, de-overlapped
-    and cut to the best ``CLIP_TARGET_MAX`` by score: a silent multi-hour
-    console capture used to fail at the model."""
-    print("🎥  Silent video — analyzing with Gemini vision (no transcript)...")
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        if llm_backend.active():
-            print("❌ This video has no usable speech, so it has to be clipped by "
-                  "watching it, and that needs Gemini (a text-only LLM server "
-                  "cannot see the footage). Add a GEMINI_API_KEY for silent videos.")
-        else:
-            print("❌ Error: GEMINI_API_KEY not found.")
+    The footage goes to the model as still frames (``_visual_frames``), never as a
+    video file: OpenRouter and Ollama take pictures. A source longer than
+    VISION_SEGMENT_SECONDS is looked at stretch by stretch (``vision_segments``), and
+    the picks are merged, de-overlapped and cut to the best ``CLIP_TARGET_MAX`` by
+    score. Every frame carries its time in the prompt, so each cut is placed against
+    the frames the model actually judged."""
+    if not ai_provider.configured():
+        print("❌ This video has no usable speech, so it has to be clipped by watching it. "
+              "That needs a vision model: pick a provider and a vision model in Settings, "
+              "or set AI_PROVIDER and OLLAMA_MODEL / OPENROUTER_MODEL on the server.")
         return None
-    client = genai.Client(api_key=api_key)
-    model_name = os.environ.get("GEMINI_MODEL") or 'gemini-3.1-flash-lite'
+    settings = ai_provider.resolve()
+    model_name = settings.model
+    print(f"🎥  Silent video — analyzing sampled frames with {settings.provider} vision (no transcript)...")
 
     # The vision path has no scoring windows to derive a count from, so the
     # env targets (user request) apply directly over the classic 3-15.
@@ -2634,7 +2506,7 @@ def get_visual_clips(video_path, video_duration, language="en", viewer_clips=Non
     try:
         covered = segments[-1][1]
         if len(segments) == 1:
-            print(f"🎥  Model: {model_name} | watching a 360p/1 fps proxy of "
+            print(f"🎥  Model: {model_name} | up to {VISION_FRAMES_PER_CALL} frames of "
                   f"{os.path.basename(video_path)}")
         else:
             print(f"🎥  Model: {model_name} | {len(segments)} stretches of "
@@ -2649,22 +2521,21 @@ def get_visual_clips(video_path, video_duration, language="en", viewer_clips=Non
         os.makedirs(tmp_dir, exist_ok=True)
         try:
             for i, (s0, s1) in enumerate(segments):
-                proxy = os.path.join(tmp_dir, f"part{i}.mp4")
+                frame_dir = os.path.join(tmp_dir, f"stretch{i}")
+                os.makedirs(frame_dir, exist_ok=True)
                 try:
-                    _vision_proxy(video_path, s0, s1, proxy)
+                    interval, frames = _visual_frames(video_path, s0, s1, frame_dir)
                     shorts, cost = _visual_pass(
-                        client, model_name, proxy, round(s1 - s0, 3), language,
-                        per_min, v_max_clips, v_min_secs, v_max_secs,
-                        hint=_viewer_hint(viewer_clips, s0, s1 - s0))
-                except gemini_worker.GeminiBlockedError:
+                        round(s1 - s0, 3), language, per_min, v_max_clips, v_min_secs, v_max_secs,
+                        interval, frames, hint=_viewer_hint(viewer_clips, s0, s1 - s0))
+                except (ai_provider.AIBlockedError, ai_provider.AIUnavailableError):
                     raise
                 except Exception as e:
                     # One bad stretch must not sink the other hours.
                     print(f"⚠️ Vision stretch {i + 1}/{len(segments)} failed: {e}")
                     continue
                 finally:
-                    if os.path.exists(proxy):
-                        os.remove(proxy)
+                    shutil.rmtree(frame_dir, ignore_errors=True)
                 costs.append(cost)
                 for sh in shorts or []:
                     sh["start"] = round(sh["start"] + s0, 3)
@@ -2686,12 +2557,16 @@ def get_visual_clips(video_path, video_duration, language="en", viewer_clips=Non
         if cost:
             result["cost_analysis"] = cost
         return result
-    except gemini_worker.GeminiBlockedError as e:
+    except ai_provider.AIBlockedError as e:
         print(f"🚫 {e}")
         raise
-    except Exception as e:
-        print(f"❌ Gemini vision error: {e}")
+    except ai_provider.AIUnavailableError as e:
+        print(f"❌ {e}")
         return None
+    except Exception as e:
+        print(f"❌ Vision pass error: {e}")
+        return None
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="AutoCrop-Vertical with Viral Clip Detection.")
@@ -2803,7 +2678,7 @@ if __name__ == '__main__':
             else:
                 output_dir = "."
         
-        # Transcription (and the Gemini pick) start on the audio track while the
+        # Transcription (and the model's pick) start on the audio track while the
         # video is still downloading; see download_youtube_video(on_audio=).
         # Not for a MAX_SOURCE_MINUTES job (the video is always cut, so the
         # early words would cover too much), nor when a checkpoint or a
@@ -2910,7 +2785,7 @@ if __name__ == '__main__':
             from reframe_v2 import source_already_fits  # imports main back
             # A source already shot vertical has no width to reorganise, and
             # the render passes it through whatever the model says. Asking
-            # anyway costs a Gemini call per upload to be ignored.
+            # anyway costs a model call per upload to be ignored.
             if _w and _h and source_already_fits(_w, _h, ASPECT_RATIO):
                 print(f"   ↕️  Source is {_w}x{_h} — already vertical, no layout to pick.")
             else:
@@ -2956,7 +2831,7 @@ if __name__ == '__main__':
         cap.release()
 
         # 3. Transcribe — unless the video has no audio, in which case fall back
-        # to Gemini vision (picks clips from the imagery instead of the speech).
+        # to vision (picks clips from the imagery instead of the speech).
         from transcribe_backends import NoAudioError
         transcript = None
         # Module handover (issue #68): another module already transcribed this
@@ -3017,11 +2892,11 @@ if __name__ == '__main__':
                   f"switching to visual analysis.")
             transcript = None
 
-        # 4. Gemini Analysis (transcript-driven, or vision for silent videos)
+        # 4. AI analysis (transcript-driven, or vision for silent videos)
         early_clips = (early_state or {}).get("clips") if early_state else None
         if (transcript is not None and early_clips
                 and transcript is early_state["transcript"]):
-            print("♻️ Using the clips Gemini picked while the video downloaded.")
+            print("♻️ Using the clips the model picked while the video downloaded.")
             clips_data = early_clips
         elif transcript is not None:
             clips_data = get_viral_clips(transcript, duration, viewer_clips=viewer_clips)
@@ -3071,10 +2946,24 @@ if __name__ == '__main__':
         # 5. Process clips in parallel: each worker cuts + renders one
         # clip. Renders are mostly ffmpeg subprocesses (parallelize well);
         # detector inference is serialized internally via DETECT_LOCK.
+        def _render_one_clip(i, clip):
+            """_process_one_clip, with the model calls it made kept on the clip as its own cost."""
+            with ai_provider.track_costs() as costs:
+                ok = _process_one_clip(i, clip)
+            if costs:
+                now = ai_provider.summarize(costs)
+                prior = clip.get('ai_cost') or {}  # a retried clip keeps its first attempt's cost
+                clip['ai_cost'] = {**now,
+                                   "total_cost": round(now["total_cost"] + float(prior.get("total_cost") or 0), 6),
+                                   "input_tokens": now["input_tokens"] + int(prior.get("input_tokens") or 0),
+                                   "output_tokens": now["output_tokens"] + int(prior.get("output_tokens") or 0),
+                                   "calls": now["calls"] + int(prior.get("calls") or 0)}
+            return ok
+
         def _process_one_clip(i, clip):
             if clip.get('pro_before'):
                 # A retry of a clip whose first attempt got as far as pro
-                # mode: start again from the range Gemini picked.
+                # mode: start again from the range the model picked.
                 import pro_mode
                 clip.update(pro_mode.restore(clip))
             start = clip['start']
@@ -3180,7 +3069,7 @@ if __name__ == '__main__':
             # Best clip first: the pool starts work in submission order, so
             # the user's first delivered clip is the strongest one instead
             # of whatever came first in the video.
-            futures = {pool.submit(_process_one_clip, i, shorts[i]): i
+            futures = {pool.submit(_render_one_clip, i, shorts[i]): i
                        for i in clip_render_order(shorts)}
             for future in as_completed(futures):
                 i = futures[future]
@@ -3200,14 +3089,14 @@ if __name__ == '__main__':
             time.sleep(CLIP_RETRY_PAUSE_SECONDS)
             _free_gpu_cache()
             try:
-                if not _process_one_clip(i, shorts[i]):
+                if not _render_one_clip(i, shorts[i]):
                     print(f"   ❌ Clip {i+1} failed again.")
             except Exception as e:
                 print(f"   ❌ Clip {i+1} failed again: {type(e).__name__}: {e}")
 
         # Persist per-clip render results added by the workers (auto_hook)
         # so the editor can see what is already burned into each clip.
-        if any('auto_hook' in c or 'hook_grounding' in c or 'pro_suggested' in c
+        if any('auto_hook' in c or 'hook_grounding' in c or 'pro_suggested' in c or 'ai_cost' in c
                for c in shorts):
             # Atomic: the dashboard is already reading this file for the
             # clips announced above (CLIP_READY).

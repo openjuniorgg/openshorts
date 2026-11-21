@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Upload, Sparkles, Youtube, Instagram, Share2, ChevronDown, Check, Activity, LayoutDashboard, Settings, Plus, History, X, Terminal, Shield, LayoutGrid, Image, Globe, RotateCcw, Calendar, AlertTriangle, KeyRound, Bot, Users, Smartphone, ExternalLink, Copy, CheckCircle2, Mail, Loader2, Download, Menu, Lock, Rocket } from 'lucide-react';
-import KeyInput from './components/KeyInput';
+import { Upload, Sparkles, Youtube, Instagram, Share2, ChevronDown, Check, Activity, LayoutDashboard, Settings, Plus, History, X, Terminal, Shield, LayoutGrid, Globe, RotateCcw, Calendar, AlertTriangle, KeyRound, Bot, Users, Smartphone, ExternalLink, Copy, CheckCircle2, Mail, Loader2, Download, Menu, Lock, Rocket } from 'lucide-react';
+import AiSettings from './components/AiSettings';
+import { useAiSettings, isChoiceReady, jobAiCost } from './lib/aiSettings';
 import MediaInput from './components/MediaInput';
 import LiveWorkspace from './components/LiveWorkspace';
 import { liveLogLines } from './lib/liveLogs';
@@ -8,7 +9,6 @@ import McpConnectCard from './components/McpConnectCard';
 import ResultCard from './components/ResultCard';
 import ProcessingAnimation from './components/ProcessingAnimation';
 // import Gallery from './components/Gallery';
-import ThumbnailStudio from './components/ThumbnailStudio';
 import SaaShortsTab from './components/SaaShortsTab';
 import UGCGallery from './components/UGCGallery';
 import ScheduleWeekModal from './components/ScheduleWeekModal';
@@ -288,7 +288,7 @@ const pollJob = async (jobId) => {
 
 function App() {
   // Cloud auth/billing session (inert when billing is disabled).
-  const { billingEnabled, isManaged, isSignedIn, me, plan, refreshMe, jobRetentionSeconds, localLlm, loading: authLoading } = useAuth();
+  const { billingEnabled, isManaged, isSignedIn, me, plan, refreshMe, jobRetentionSeconds, aiProvider, loading: authLoading } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
   const [showTopUp, setShowTopUp] = useState(false);
   // Free plan: "want the watermark off?" once per job, when the clips land.
@@ -327,7 +327,7 @@ function App() {
   // the ephemeral local /videos/ files have been cleaned up (e.g. after a reload).
   const [durableClips, setDurableClips] = useState({});
 
-  const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_key') || '');
+  const [apiKey, setApiKey] = useState(localStorage.getItem('openrouter_key') || '');
   // Social API State - Load encrypted or plain
   const [uploadPostKey, setUploadPostKey] = useState(() => {
     const stored = localStorage.getItem('uploadPostKey_v3');
@@ -495,7 +495,7 @@ function App() {
     setShowTopUp(true);
   };
 
-  // Out-of-minutes errors from the thumbnail studio, clip editor and autopilot
+  // Out-of-minutes errors from the clip editor and autopilot
   // (lib/api.openQuotaWall) open the same wall as the main clip flow.
   const meStatus = me?.status;
   useEffect(() => {
@@ -775,9 +775,9 @@ function App() {
   }, [jobId, status, results, activeTab, noSource, projectState]);
 
   useEffect(() => {
-    // Encrypt Gemini Key too for consistency if desired, but user asked specifically about Social integration not saving well.
-    // For now keeping gemini plain for compatibility unless requested.
-    if (apiKey) localStorage.setItem('gemini_key', apiKey);
+    // Encrypt OpenRouter Key too for consistency if desired, but user asked specifically about Social integration not saving well.
+    // For now kept in plain text for compatibility unless requested.
+    if (apiKey) localStorage.setItem('openrouter_key', apiKey);
   }, [apiKey]);
 
   useEffect(() => {
@@ -1005,10 +1005,25 @@ function App() {
 
   // Hosted is paid-only (no BYOK core). Self-host uses BYOK keys.
   // `keysMissing` now means "self-host BYOK keys missing" — it never fires on hosted.
-  // A self-hosted server running the moment picker on a local LLM
-  // (LLM_BASE_URL) does not need a Gemini key for the core pipeline.
-  const geminiOk = !!apiKey || !!localLlm;
-  const keysMissing = !billingEnabled && (!geminiOk || !uploadPostKey);
+  // A self-hosted server running its model with Ollama (AI_PROVIDER=ollama)
+  // needs no OpenRouter key for the core pipeline.
+  const aiSettings = useAiSettings();
+  // The provider and model the user chose in Settings decide. Billing runs on the managed key.
+  const aiOk = billingEnabled || isChoiceReady(aiSettings, { hasKey: !!apiKey, keyOnServer: !!aiProvider?.keyOnServer });
+  // Lifetime model cost on this server (self-host): shown in the header, refreshed every 30 s.
+  const [aiUsage, setAiUsage] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    const load = () => apiJson('/api/ai/usage').then((d) => { if (alive) setAiUsage(d); }).catch(() => {});
+    load();
+    const timer = setInterval(load, 30000);
+    return () => { alive = false; clearInterval(timer); };
+  }, []);
+  // What is missing for the provider the user chose: a provider, an Ollama model, or an OpenRouter key and model.
+  const aiMissing = !aiSettings.provider ? 'AI provider'
+    : aiSettings.provider === 'ollama' ? 'Ollama model'
+      : (!apiKey && !aiProvider?.keyOnServer ? 'OpenRouter API Key' : 'OpenRouter model');
+  const keysMissing = !billingEnabled && (!aiOk || !uploadPostKey);
   const needsPlan = billingEnabled && !isManaged;   // hosted, signed-out or no active plan/trial
 
   // Fresh sign-up: Clip Generator tutorial (AuthContext set os_show_clip_tutorial
@@ -1075,7 +1090,7 @@ function App() {
   // dropped so a reload does not keep forcing the tab.
   const [autopilotConnected, setAutopilotConnected] = useState(null); // connect outcome, see lib/connectReturn.js
   useEffect(() => {
-    const DEEP_LINK_TABS = ['autopilot', 'history', 'settings', 'thumbnails', 'dashboard', 'saasshorts'];
+    const DEEP_LINK_TABS = ['autopilot', 'history', 'settings', 'dashboard', 'saasshorts'];
     const apply = () => {
       const hash = window.location.hash || '';
       if (!hash.startsWith('#app?')) return;
@@ -1156,11 +1171,11 @@ function App() {
     track('ClipTutorialSkipped', { props: { phase: tutorialPhase } });
     finishTutorial();
   };
-  // Included in the plan (fully managed, no keys): Clip Generator + YouTube Studio.
+  // Included in the plan (fully managed, no keys): Clip Generator.
   // Advanced (bring your own fal.ai + ElevenLabs keys): AI Shorts + AI Agent.
-  const INCLUDED_TOOL_TABS = ['dashboard', 'thumbnails'];
+  const INCLUDED_TOOL_TABS = ['dashboard'];
   const ADVANCED_TOOL_TABS = ['saasshorts', 'ai-agent'];
-  const TOOL_NAMES = { dashboard: 'the Clip Generator', thumbnails: 'the YouTube Studio' };
+  const TOOL_NAMES = { dashboard: 'the Clip Generator' };
   const gateThisTab = needsPlan && INCLUDED_TOOL_TABS.includes(activeTab);      // included tool, no plan yet
   const advancedThisTab = billingEnabled && ADVANCED_TOOL_TABS.includes(activeTab); // BYOK-notice tools
 
@@ -1259,9 +1274,9 @@ function App() {
 
     try {
       let body;
-      // BYOK sends the Gemini header; managed users rely on the bearer token
+      // BYOK sends the AI model header; managed users rely on the bearer token
       // that apiFetch attaches automatically.
-      const headers = apiKey ? { 'X-Gemini-Key': apiKey } : {};
+      const headers = apiKey ? { 'X-OpenRouter-Key': apiKey } : {};
 
       // Advanced generation controls: only sent when the user set them, so the
       // default request stays byte-identical to the pre-feature one.
@@ -1441,7 +1456,6 @@ function App() {
     { id: 'saasshorts', ord: '03', icon: Sparkles, label: 'AI Shorts', short: 'ai shorts', byok: true, primary: true },
     { id: 'ai-agent', ord: '04', icon: Bot, label: 'AI Agent', short: 'agent', byok: true },
     { id: 'ugc-gallery', ord: '05', icon: LayoutGrid, label: 'UGC Gallery', short: 'gallery', primary: true },
-    { id: 'thumbnails', ord: '06', icon: Image, label: 'YouTube Studio', short: 'studio', primary: true },
     ...(billingEnabled && isSignedIn ? [{ id: 'history', ord: '07', icon: History, label: 'History', short: 'history' }] : []),
     { id: 'settings', ord: '08', icon: Settings, label: 'Settings', short: 'settings' },
   ];
@@ -1698,6 +1712,15 @@ function App() {
               />
             )}
 
+            {/* Lifetime model cost on this server (self-host): every answer, every job and tool. */}
+            {!billingEnabled && aiUsage?.enabled && aiUsage.calls > 0 && (
+              <span
+                className="readout bg-paper3 px-2.5 py-1 rounded-full text-xs shrink-0"
+                title={`${aiUsage.calls} model calls · ${aiUsage.cloud_calls} paid · ${aiUsage.local_calls} local (free) · ${(aiUsage.input_tokens + aiUsage.output_tokens).toLocaleString()} tokens`}
+              >
+                AI total ${aiUsage.total_usd.toFixed(4)}
+              </span>
+            )}
             {/* Cloud: minutes meter + account/sign-in. For free users the meter
                 opens the upgrade modal — otherwise the only path to a plan is
                 failing against the quota wall. */}
@@ -1731,10 +1754,10 @@ function App() {
               >
                 <AlertTriangle size={12} />
                 <span className="hidden md:inline">
-                  {!geminiOk && !uploadPostKey
-                    ? 'Gemini & Upload-Post keys missing'
-                    : !geminiOk
-                      ? 'Gemini API Key Missing'
+                  {!aiOk && !uploadPostKey
+                    ? `${aiMissing} & Upload-Post keys missing`
+                    : !aiOk
+                      ? `${aiMissing} missing`
                       : 'Upload-Post API Key Missing'}
                 </span>
                 <span className="md:hidden">keys missing</span>
@@ -1751,10 +1774,10 @@ function App() {
               <div className="min-w-0">
                 <span className="font-medium text-ink">Required API keys missing.</span>{' '}
                 <span className="text-muted">
-                  {!geminiOk && !uploadPostKey
-                    ? 'Set your Gemini and Upload-Post API keys to use OpenShorts.'
-                    : !geminiOk
-                      ? 'Set your Gemini API key to use OpenShorts.'
+                  {!aiOk && !uploadPostKey
+                    ? `Set up the ${aiMissing} and your Upload-Post API key to use OpenShorts.`
+                    : !aiOk
+                      ? `Set up the ${aiMissing} to use OpenShorts.`
                       : 'Set your Upload-Post API key to use OpenShorts.'}
                 </span>
               </div>
@@ -1808,7 +1831,7 @@ function App() {
           </div>
         )}
 
-        {/* Included tools (Clip Generator, YouTube Studio): non-blocking trial prompt. */}
+        {/* Included tools (Clip Generator): non-blocking trial prompt. */}
         {gateThisTab && <TrialGate toolName={TOOL_NAMES[activeTab] || 'this'} />}
 
         {/* Advanced tools (AI Shorts, AI Agent): BYOK fal.ai + ElevenLabs notice. */}
@@ -1844,7 +1867,7 @@ function App() {
                     <span className="badge-ok">Managed</span>
                   </div>
                   <p className="text-xs text-muted mb-5 leading-relaxed">
-                    Your plan includes the <strong>Clip Generator</strong> and <strong>YouTube Studio</strong>,
+                    Your plan includes the <strong>Clip Generator</strong>,
                     fully managed — no API keys required. AI Shorts &amp; dubbing use your own fal.ai / ElevenLabs
                     keys (below). Connect your social accounts to publish directly.
                   </p>
@@ -1877,7 +1900,7 @@ function App() {
                 </div>
               ) : (
                 <>
-              <KeyInput onKeySet={setApiKey} savedKey={apiKey} />
+              <AiSettings apiKey={apiKey} onKeySet={setApiKey} keyOnServer={!!aiProvider?.keyOnServer} />
 
               <div className="card p-4 sm:p-6 mt-8">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
@@ -2053,7 +2076,7 @@ function App() {
 
           {/* View: SaaS Shorts */}
           {activeTab === 'saasshorts' && (
-            <SaaShortsTab geminiApiKey={apiKey} elevenLabsKey={elevenLabsKey} falKey={falKey} uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} managed={isManaged} />
+            <SaaShortsTab openrouterKey={apiKey} elevenLabsKey={elevenLabsKey} falKey={falKey} uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} managed={isManaged} />
           )}
 
           {/* View: AI Agent */}
@@ -2103,7 +2126,7 @@ function App() {
                     </div>
                     <h3 className="font-medium text-ink lowercase">2. AI clippers work</h3>
                     <p className="text-xs text-muted leading-relaxed">
-                      Whisper transcribes, Gemini 3 Flash spots viral beats, FFmpeg cuts each clip and adds a hook overlay.
+                      Whisper transcribes, an AI model spots viral beats, FFmpeg cuts each clip and adds a hook overlay.
                     </p>
                   </div>
 
@@ -2159,7 +2182,7 @@ function App() {
                     </div>
                     <div className="flex items-start gap-2 text-ink2">
                       <Check size={16} className="text-brass shrink-0 mt-0.5" />
-                      <span>Gemini 3 Flash multimodal moment detection</span>
+                      <span>OpenRouter or Ollama multimodal moment detection</span>
                     </div>
                     <div className="flex items-start gap-2 text-ink2">
                       <Check size={16} className="text-brass shrink-0 mt-0.5" />
@@ -2224,21 +2247,6 @@ function App() {
                 )}
               </div>
             </div>
-          )}
-
-          {activeTab === 'thumbnails' && (
-            <ThumbnailStudio
-              geminiApiKey={apiKey}
-              uploadPostKey={uploadPostKey}
-              uploadUserId={uploadUserId}
-              managed={isManaged}
-              onCreateClips={(sessionId) => {
-                setActiveTab('dashboard');
-                // The Studio source is the user's own upload, published to their
-                // own channel; the handover carries that same attestation.
-                handleProcess({ type: 'thumbnail_session', payload: sessionId, acknowledged: true });
-              }}
-            />
           )}
 
           {/* View: Gallery */}
@@ -2311,7 +2319,8 @@ function App() {
                   index={index}
                   jobId={jobId}
                   clipCount={1}
-                  geminiApiKey={apiKey}
+                  aiCostShare={0}
+                  openrouterKey={apiKey}
                   elevenLabsKey={elevenLabsKey}
                   isManaged={isManaged}
                   uploadPostKey={uploadPostKey}
@@ -2479,9 +2488,9 @@ function App() {
                         {results.clips.length} Clips
                       </span>
                     )}
-                    {results?.cost_analysis && !isManaged && (
-                      <span className="readout bg-paper3 px-2.5 py-1 rounded-full" title={`Input: ${results.cost_analysis.input_tokens} | Output: ${results.cost_analysis.output_tokens}`}>
-                        GEMINI · ${results.cost_analysis.total_cost.toFixed(5)}
+                    {!isManaged && jobAiCost(results).total > 0 && (
+                      <span className="readout bg-paper3 px-2.5 py-1 rounded-full" title="Model cost of this video: the analysis, plus each clip's own calls">
+                        AI · ${jobAiCost(results).total.toFixed(4)}
                       </span>
                     )}
                   </h2>
@@ -2639,6 +2648,7 @@ function App() {
                       {rankedClips.map(({ clip, index: i }) => (
                         <ResultCard
                           key={`${jobId}-${i}-${clip.video_url || ''}`}
+                          aiCostShare={jobAiCost(results).share}
                           clip={clip}
                           index={i}
                           jobId={jobId}
@@ -2651,7 +2661,7 @@ function App() {
                           durable={durableClips[i]}
                           uploadPostKey={uploadPostKey}
                           uploadUserId={uploadUserId}
-                          geminiApiKey={apiKey}
+                          openrouterKey={apiKey}
                           elevenLabsKey={elevenLabsKey}
                           isManaged={isManaged}
                           connectedPlatforms={(userProfiles.find((p) => p.username === uploadUserId) || userProfiles[0])?.connected ?? null}
@@ -2698,10 +2708,10 @@ function App() {
         isOpen={showKeyModal}
         onClose={() => setShowKeyModal(false)}
         eyebrow="SETUP"
-        title={!geminiOk && !uploadPostKey
+        title={!aiOk && !uploadPostKey
           ? 'Required API Keys Missing'
-          : !geminiOk
-            ? 'Gemini API Key Required'
+          : !aiOk
+            ? `${aiMissing} Required`
             : 'Upload-Post API Key Required'}
         footer={
           <div className="flex gap-3">
@@ -2722,14 +2732,14 @@ function App() {
       >
         <div className="space-y-4">
           <p className="text-sm text-muted">
-            OpenShorts needs both a <strong className="text-ink2">Gemini</strong> API key and an <strong className="text-ink2">Upload-Post</strong> API key. Both have free tiers.
+            OpenShorts needs both a <strong className="text-ink2">OpenRouter</strong> API key and an <strong className="text-ink2">Upload-Post</strong> API key. Both have free tiers.
           </p>
 
-          {/* Gemini block */}
+          {/* the AI model block */}
           <div className={`rounded-input p-4 space-y-2 border bg-paper ${!apiKey ? 'border-rule2 shadow-xs' : 'border-rule opacity-80'}`}>
             <p className="text-xs font-medium text-ink flex items-center gap-2">
               {apiKey ? <Check size={12} className="text-ok" /> : <AlertTriangle size={12} className="text-warn" />}
-              Gemini API Key {apiKey && <span className="text-ok">— set</span>}
+              OpenRouter API Key {apiKey && <span className="text-ok">— set</span>}
             </p>
             {!apiKey && (
               <>
@@ -2741,7 +2751,7 @@ function App() {
                 </ol>
                 <input
                   type="text"
-                  placeholder="Paste your Gemini API key here..."
+                  placeholder="Paste your OpenRouter API key here..."
                   className="input-field"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && e.target.value.trim()) {

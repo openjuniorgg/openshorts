@@ -3,7 +3,7 @@ SaaSShorts: AI-powered UGC video generator for SaaS products.
 
 Generates viral TikTok/Instagram Reels content from a SaaS URL.
 Pipeline:
-  1. Scrape & analyze SaaS website (Gemini)
+  1. Scrape & analyze SaaS website (the AI model)
   2. Generate video scripts (hook → problem → solution → CTA)
   3. Generate AI actor portrait (Flux Pro via fal.ai)
   4. Generate voiceover (ElevenLabs TTS)
@@ -18,6 +18,7 @@ import json
 import time
 import subprocess
 
+import ai_provider
 from ffmpeg_utils import video_encode_args, DELIVERY, mark_ai_generated
 import httpx
 from urllib.parse import urljoin
@@ -39,30 +40,28 @@ DEFAULT_VOICES = {
 }
 
 
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL_SAAS") or os.environ.get("GEMINI_MODEL") or "gemini-3.1-flash-lite"
-
-
 # ═══════════════════════════════════════════════════════════════════════
 # Phase 1: Website Scraping, Web Research & Analysis
 # ═══════════════════════════════════════════════════════════════════════
 
-def research_saas_online(url: str, gemini_key: str) -> dict:
+def research_saas_online(url: str, ai: ai_provider.Settings) -> dict:
     """
-    Use Gemini with Google Search grounding to deeply research a SaaS product
+    Use the AI model with web search to deeply research a SaaS product
     across the internet: reviews, Reddit threads, Twitter, competitor comparisons,
     pricing complaints, user testimonials, etc.
     """
-    from google import genai
-    from google.genai import types
+    config = ai
+    if config.provider != "openrouter":
+        print("[SaaSShorts] ℹ️ Web research needs OpenRouter (web search); analysing the website alone.")
+        return {"raw_research": "", "product_name": url.replace("https://", "").replace("http://", "").split("/")[0],
+                "grounding_sources": []}
 
-    print(f"[SaaSShorts] 🔍 Researching {url} across the web (Google Search grounding)...")
-
-    client = genai.Client(api_key=gemini_key)
+    print(f"[SaaSShorts] 🔍 Researching {url} across the web (OpenRouter web search)...")
 
     # Extract domain name for search queries
     domain = url.replace("https://", "").replace("http://", "").split("/")[0]
 
-    prompt = f"""You are a world-class SaaS market researcher. Research this product thoroughly using Google Search.
+    prompt = f"""You are a world-class SaaS market researcher. Research this product thoroughly using web search.
 
 Product URL: {url}
 Domain: {domain}
@@ -102,31 +101,13 @@ Return a comprehensive JSON research report:
 
 Be thorough. Use REAL data from your search results, not made-up information."""
 
-    response = client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=[prompt],
-        config=types.GenerateContentConfig(
-            tools=[types.Tool(google_search=types.GoogleSearch())],
-        ),
-    )
-
-    # Extract grounding sources
+    raw, _cost = ai_provider.generate_text(prompt, config=config, web=True, json_mode=True, temperature=0.3)
+    # The web citations are not part of the text answer, so no sources are kept.
     sources = []
-    try:
-        metadata = response.candidates[0].grounding_metadata
-        if metadata and metadata.grounding_chunks:
-            for chunk in metadata.grounding_chunks:
-                if chunk.web:
-                    sources.append({"title": chunk.web.title, "url": chunk.web.uri})
-        if metadata and metadata.web_search_queries:
-            print(f"[SaaSShorts]   Searches performed: {metadata.web_search_queries}")
-    except Exception:
-        pass
 
     # Parse response text as JSON
-    raw = response.text
     if not raw:
-        print("[SaaSShorts] ⚠️ Gemini returned empty response for web research")
+        print("[SaaSShorts] ⚠️ The model returned an empty response for web research")
         return {"raw_research": "", "product_name": domain, "grounding_sources": sources}
 
     text = raw.strip()
@@ -267,23 +248,18 @@ def _scrape_website(url: str) -> dict:
     return result
 
 
-def analyze_saas(scraped_data: dict, gemini_key: str, web_research: dict = None) -> dict:
+def analyze_saas(scraped_data: dict, ai: ai_provider.Settings, web_research: dict = None) -> dict:
     """
     Deep analysis of a SaaS product combining website scraping + web research.
-    Uses Gemini 3 Flash for synthesis.
+    Uses the configured model for synthesis.
     """
-    from google import genai
-    from google.genai import types
-
     print(f"[SaaSShorts] 🧠 Analyzing {scraped_data['url']} (with web research)...")
-
-    client = genai.Client(api_key=gemini_key)
 
     # Build web research context
     research_context = ""
     if web_research:
         research_context = f"""
-=== WEB RESEARCH (from Google Search) ===
+=== WEB RESEARCH (from web search) ===
 Product: {web_research.get('product_name', 'Unknown')}
 What it does: {web_research.get('what_it_does', 'N/A')}
 Target market: {web_research.get('target_market', 'N/A')}
@@ -363,15 +339,10 @@ Return a JSON object:
 IMPORTANT: Use REAL pain points from user reviews when available. Real frustrations make the best UGC content.
 Include 5-8 pain points, 4-6 emotional hooks, and 4+ viral angles."""
 
-    response = client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=[prompt],
-        config=types.GenerateContentConfig(response_mime_type="application/json"),
-    )
-
-    raw = response.text
+    raw, _cost = ai_provider.generate_text(
+        prompt, config=ai, json_mode=True)
     if not raw:
-        raise Exception("Gemini returned empty response for SaaS analysis")
+        raise Exception("The model returned an empty response for SaaS analysis")
 
     text = raw.strip()
     if text.startswith("```"):
@@ -398,20 +369,15 @@ Include 5-8 pain points, 4-6 emotional hooks, and 4+ viral angles."""
 
 def generate_scripts(
     analysis: dict,
-    gemini_key: str,
+    ai: ai_provider.Settings,
     num_scripts: int = 3,
     style: str = "ugc",
     language: str = "en",
     actor_gender: str = "female",
 ) -> list:
     """Generate video scripts based on SaaS analysis."""
-    from google import genai
-    from google.genai import types
-
     lang_name = "Spanish" if language == "es" else "English"
     print(f"[SaaSShorts] 📝 Generating {num_scripts} scripts ({style}, {lang_name})...")
-
-    client = genai.Client(api_key=gemini_key)
 
     style_guide = {
         "ugc": "Natural, authentic UGC style. Person talking to camera like sharing a discovery with a friend. Casual, genuine.",
@@ -545,18 +511,10 @@ RULES:
 - Example female: "a 26 year old attractive european woman, light brown wavy hair, wearing a white tank top, natural minimal makeup, friendly face"
 - Example male: "a 29 year old european man, short dark hair, light stubble, wearing a navy t-shirt, smart casual look" """
 
-    response = client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=[prompt],
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            max_output_tokens=8192,
-        ),
-    )
-
-    raw = response.text
+    raw, _cost = ai_provider.generate_text(
+        prompt, config=ai, json_mode=True, temperature=0.8)
     if not raw:
-        raise Exception("Gemini returned empty response for script generation")
+        raise Exception("The model returned an empty response for script generation")
 
     text = raw.strip()
     if text.startswith("```"):

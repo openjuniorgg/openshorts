@@ -42,7 +42,7 @@ _ENV_HEADERS = {
         f"Bearer {os.environ['OPENSHORTS_API_KEY']}"
         if os.environ.get("OPENSHORTS_API_KEY") else None
     ),
-    "x-gemini-key": lambda: os.environ.get("GEMINI_API_KEY"),
+    "x-openrouter-key": lambda: os.environ.get("OPENROUTER_API_KEY"),
     "x-upload-post-key": lambda: os.environ.get("UPLOAD_POST_API_KEY"),
 }
 

@@ -22,8 +22,8 @@ def test_transcription():
     assert _classify_failure("av/container/streams.py tuple index out of range") == "transcription"
 
 
-def test_gemini():
-    assert _classify_failure("google.genai error 500") == "gemini"
+def test_ai_provider_errors():
+    assert _classify_failure("OpenRouter answered 500: upstream failed") == "ai provider"
 
 
 def test_ffmpeg():

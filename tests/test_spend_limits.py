@@ -69,7 +69,7 @@ def cloud_user(monkeypatch):
     monkeypatch.setattr(app_module, "_cloud_config", config)
     monkeypatch.setattr(app_module, "managed_keys", SimpleNamespace(
         has_active_entitlement=lambda u: u is not None and u.entitled,
-        gemini_key=lambda: "managed-gemini", upload_post_key=lambda: "managed-up"))
+        openrouter_key=lambda: "managed-openrouter", upload_post_key=lambda: "managed-up"))
     monkeypatch.setattr(app_module, "_user_from_request", _user)
     return user
 
@@ -99,7 +99,7 @@ def test_new_job_drops_the_paid_proxy_once_the_budget_is_spent(dirs, monkeypatch
     monkeypatch.setattr(app_module, "reserve_process_minutes", _fake_reserve(paid_allowed))
     monkeypatch.setattr(app_module, "_quality_gate", _no_gate)
     monkeypatch.setattr(app_module, "_validate_source_url", _allow)
-    resp = _call("post", "/api/process", headers={"X-Gemini-Key": "k"},
+    resp = _call("post", "/api/process", headers={"X-OpenRouter-Key": "k"},
                  json={"url": "https://www.youtube.com/watch?v=ok", "acknowledged": True})
     assert resp.status_code == 200, resp.text
     env = app_module.jobs[resp.json()["job_id"]]["env"]
@@ -162,7 +162,7 @@ async def _refuse(*a, **k):
 
 def test_refused_file_upload_is_deleted(dirs, monkeypatch):
     monkeypatch.setattr(app_module, "reserve_process_minutes", _refuse)
-    resp = _call("post", "/api/process", headers={"X-Gemini-Key": "k"},
+    resp = _call("post", "/api/process", headers={"X-OpenRouter-Key": "k"},
                  files={"file": ("big.mp4", io.BytesIO(b"x" * 4096), "video/mp4")},
                  data={"acknowledged": "true"})
     assert resp.status_code == 402
@@ -177,7 +177,7 @@ def test_refused_agent_upload_goes_back_to_its_slot(dirs, monkeypatch):
     slot = {"user_id": None, "filename": "v.mp4", "path": str(path),
             "created": 1e18, "bytes": 5, "complete": True}
     app_module.pending_uploads["abc"] = slot
-    resp = _call("post", "/api/process", headers={"X-Gemini-Key": "k"},
+    resp = _call("post", "/api/process", headers={"X-OpenRouter-Key": "k"},
                  json={"upload_id": "abc", "acknowledged": True})
     assert resp.status_code == 402
     assert app_module.pending_uploads["abc"] is slot
@@ -313,7 +313,7 @@ def titles(monkeypatch):
 
 
 def _titles(body):
-    return _call("post", "/api/thumbnail/titles", json=body, headers={"X-Gemini-Key": "k"})
+    return _call("post", "/api/thumbnail/titles", json=body, headers={"X-OpenRouter-Key": "k"})
 
 
 def test_titles_input_lengths_are_capped(titles):
@@ -360,21 +360,21 @@ def test_text_calls_are_capped_per_hour(titles, cloud_user, monkeypatch):
 
 def test_describe_title_is_capped(monkeypatch):
     monkeypatch.setattr(app_module, "thumbnail_sessions", {})
-    r = _call("post", "/api/thumbnail/describe", headers={"X-Gemini-Key": "k"},
+    r = _call("post", "/api/thumbnail/describe", headers={"X-OpenRouter-Key": "k"},
               json={"session_id": "s1", "title": "x" * (config.THUMBNAIL_TITLE_MAX_CHARS + 1)})
     assert r.status_code == 413
 
 
 def test_description_prompt_is_bounded(monkeypatch):
+    import ai_provider
     import thumbnail
     sent = {}
 
-    class _Models:
-        def generate_content(self, model, contents, **kw):
-            sent["prompt"] = contents if isinstance(contents, str) else str(contents)
-            return SimpleNamespace(text='{"description": "d"}')
+    def fake_generate_text(prompt, **kw):
+        sent["prompt"] = prompt
+        return '{"description": "d"}', None
 
-    monkeypatch.setattr(thumbnail.genai, "Client", lambda api_key: SimpleNamespace(models=_Models()))
+    monkeypatch.setattr(ai_provider, "generate_text", fake_generate_text)
     segs = [{"start": i, "end": i + 1, "text": "word " * 50} for i in range(2000)]
     thumbnail.generate_youtube_description("k", "t", segs, "en", 2000, max_chars=5000)
     assert len(sent["prompt"]) < 5000 + 5000  # transcript capped; the rest is the template
@@ -481,7 +481,7 @@ def test_oauth_registration_is_rate_limited_per_ip(monkeypatch):
     ({"description": "x" * (config.SAAS_DESCRIPTION_MAX_CHARS + 1)}, "description"),
 ])
 def test_saasshorts_inputs_are_bounded(body, field):
-    r = _call("post", "/api/saasshorts/analyze", json=body, headers={"X-Gemini-Key": "k"})
+    r = _call("post", "/api/saasshorts/analyze", json=body, headers={"X-OpenRouter-Key": "k"})
     assert r.status_code in (400, 413)
     assert field in r.json()["detail"]
 

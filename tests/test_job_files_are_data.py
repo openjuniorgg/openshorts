@@ -61,7 +61,7 @@ def test_a_filter_string_that_is_not_a_plain_chain_of_our_filters_is_refused(bad
 def test_the_edit_ffmpeg_gets_no_credentials(monkeypatch):
     editor = pytest.importorskip("editor")
     for name in ("STRIPE_SECRET_KEY", "DATABASE_URL", "JWT_SECRET", "PROXY_URL",
-                 "YOUTUBE_COOKIES", "REMOTE_WORKER_TOKEN", "GEMINI_API_KEY"):
+                 "YOUTUBE_COOKIES", "REMOTE_WORKER_TOKEN", "OPENROUTER_API_KEY"):
         monkeypatch.setenv(name, "secret")
     monkeypatch.setenv("FFMPEG_THREADS", "2")
     env = editor.VideoEditor._ffmpeg_env()

@@ -5,7 +5,7 @@
 It only makes outbound calls (see docs/architecture/remote-worker.md): claim a
 job, fetch the source the API host already downloaded, run the same main.py
 here, send every output file back, report the exit code. It holds no database,
-storage, proxy or cookie credential, only its own model key (GEMINI_API_KEY in
+storage, proxy or cookie credential, only its own model key (OPENROUTER_API_KEY in
 its environment) and the worker token.
 
 Run it from the image's /app, so the relative paths of a job (``output/<id>``,

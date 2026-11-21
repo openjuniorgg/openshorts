@@ -24,7 +24,7 @@ def _request(json_body):
         async with httpx.AsyncClient(transport=transport,
                                      base_url="http://testserver") as client:
             return await client.post("/api/edit", json=json_body,
-                                     headers={"X-Gemini-Key": "test-key"})
+                                     headers={"X-OpenRouter-Key": "test-key"})
     return asyncio.run(_do())
 
 
@@ -57,7 +57,7 @@ def editor(monkeypatch):
     class Fake:
         writes = True
 
-        def __init__(self, api_key):
+        def __init__(self, ai=None):
             pass
 
         def upload_video(self, path):

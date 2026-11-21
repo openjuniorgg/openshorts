@@ -139,16 +139,16 @@ FIRST_VIDEO_IP_WINDOW_DAYS = 30
 # 'trialing'.
 TRIAL_MINUTE_CAP = 20
 
-# Gemini IMAGE generation (thumbnails) is the one expensive managed Gemini call
+# AI image generation (thumbnails) is the one expensive managed AI call
 # (~$0.04/image, batch of ~3). It isn't naturally minute-metered, so each
 # thumbnail generation batch consumes this many minutes from the plan quota —
 # roughly matching its cost to the per-minute economics. Text (titles/desc) is free.
 THUMBNAIL_MINUTES = 3
 
-# Other managed Gemini calls that upload a video for context (AI effect/filter
+# Other managed AI calls that upload a video for context (AI effect/filter
 # generation, thumbnail analysis, SaaS-shorts analysis). Cheaper than image gen
 # but not free — meter a small fixed cost so an entitled user can't loop them to
-# burn the operator's managed Gemini budget. Pure-text calls (titles/desc) stay free.
+# burn the operator's managed AI budget. Pure-text calls (titles/desc) stay free.
 MANAGED_ANALYSIS_MINUTES = 1
 
 # Post-processing FFmpeg re-encodes (subtitle burn, hook overlay) and the
@@ -180,11 +180,11 @@ RENDER_MINUTES = 3
 # the same month: 12 such actions in an hour, the busiest user 46).
 EDITOR_ACTION_MINUTES = 0
 EDITOR_ACTIONS_PER_HOUR = 60
-# Except the two that call Gemini with the clip (AI edit, AI effects): those
+# Except the two that call the model with the clip (AI edit, AI effects): those
 # spend the managed Google key, so only this many a day per user are free and
 # each one after costs MANAGED_ANALYSIS_MINUTES again. Real use since 1-aug-2026:
 # p99 is 4 a day, the busiest user-day 8, so 5 covers 99.4% of user-days, while
-# the hourly cap alone would let one account run ~1,400 Gemini calls a day.
+# the hourly cap alone would let one account run ~1,400 model calls a day.
 AI_EDITS_FREE_PER_DAY = 5
 
 
@@ -249,7 +249,7 @@ def _env_int(name: str, default: int) -> int:
 # than TRANSCRIBE_MINUTES, so a typical video keeps its flat price).
 THUMBNAIL_MAX_SOURCE_MINUTES = _env_int("THUMBNAIL_MAX_SOURCE_MINUTES", 180)
 THUMBNAIL_SOURCE_MINUTES_PER_CHARGED = _env_int("THUMBNAIL_SOURCE_MINUTES_PER_CHARGED", 10)
-# Title refinement and description calls (Gemini text) per user and hour, and
+# Title refinement and description calls (model text) per user and hour, and
 # refinements per Thumbnail Studio session.
 THUMBNAIL_TEXT_CALLS_PER_HOUR = _env_int("THUMBNAIL_TEXT_CALLS_PER_HOUR", 60)
 THUMBNAIL_REFINES_PER_SESSION = _env_int("THUMBNAIL_REFINES_PER_SESSION", 40)
@@ -408,8 +408,8 @@ class Settings:
 
     # Managed provider keys (server-owned, only handed to entitled users)
     @property
-    def managed_gemini_key(self) -> str:
-        return os.environ.get("MANAGED_GEMINI_API_KEY", "")
+    def managed_openrouter_key(self) -> str:
+        return os.environ.get("MANAGED_OPENROUTER_API_KEY", "")
 
     @property
     def managed_upload_post_key(self) -> str:

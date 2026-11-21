@@ -38,12 +38,12 @@ const S = {
 }
 
 const FEATURES = [
-  ['AI viral moment detection', 'Google Gemini 3.1 Flash-Lite scores the transcript and scene data to find the 3 to 15 strongest moments, so there is no manual scrubbing.'],
+  ['AI viral moment detection', 'An AI model (OpenRouter or Ollama) scores the transcript and scene data to find the 3 to 15 strongest moments, so there is no manual scrubbing.'],
   ['Smart 9:16 vertical cropping', 'Dual-mode reframing with MediaPipe face tracking and a YOLOv8 fallback, stabilised so the camera holds still instead of swinging.'],
   ['Word-level automatic subtitles', 'faster-whisper produces a timestamp for every word, and the subtitles are burned in with FFmpeg.'],
   ['AI voice dubbing in 30+ languages', 'With your own ElevenLabs key, in the cloud or self-hosted: the audio is translated keeping the speaker\'s voice, then re-transcribed so subtitles match.'],
   ['Hook text overlays', 'AI-written hook titles covering the first seconds, which is where a short-form viewer decides whether to stay.'],
-  ['AI video effects', 'Gemini-generated FFmpeg filter chains for colour grading, transitions and visual clean-up.'],
+  ['AI video effects', 'the AI model-generated FFmpeg filter chains for colour grading, transitions and visual clean-up.'],
   ['Local video upload', 'Podcasts, webinars, livestreams, interviews and vlogs, at full resolution, from a file or a YouTube link.'],
   ['Self-hosted and private', 'Run it with Docker on your own machine and the source video never leaves your infrastructure.'],
   ['Free AI YouTube studio', 'AI thumbnail generator, 10 viral title suggestions and auto-written descriptions with chapter timestamps.'],
@@ -55,7 +55,7 @@ const FEATURES = [
 
 const STEPS = [
   ['Upload a long-form video', 'Any video you own: podcasts, webinars, livestreams, interviews, or a YouTube link.'],
-  ['AI finds the best moments', 'Gemini 3.1 Flash-Lite returns 3 to 15 candidate clips of 15 to 120 seconds each.'],
+  ['AI finds the best moments', 'An AI model (OpenRouter or Ollama) returns 3 to 15 candidate clips of 15 to 120 seconds each.'],
   ['Smart cropping to vertical 9:16', 'Face-tracked reframing keeps the subject centred without the camera swinging.'],
   ['Subtitles, hooks and effects', 'Word-level subtitles, an AI hook overlay, optional effects and dubbing into 30+ languages with your own ElevenLabs key.'],
   ['Download or post directly', 'Export the clips or publish straight to TikTok, Instagram Reels and YouTube Shorts.'],
@@ -68,7 +68,7 @@ const FAQ = [
   [
     'Is OpenShorts really free?',
     'Self-hosting is free under the MIT licence, with no watermark and no cap; OpenShorts Cloud has a free plan (your first video up to 60 minutes, then 20 minutes a month, watermarked) and paid plans from $12/month.' +
-      ' Self-hosted costs you hardware and time: on a typical CPU an 8-minute video takes 5 to 8 minutes to process, and you supply your own Google Gemini key, whose free tier covers 1,500 requests a day. On OpenShorts Cloud an NVIDIA GPU clips that same video in about 50 seconds, the Gemini key is included, paid plans post every clip to TikTok, Instagram, YouTube, Facebook, LinkedIn, Threads and Bluesky for you and Autopilot clips each new video on your channel on its own, and your clips stay retrievable from any browser.',
+      ' Self-hosted costs you hardware and time: on a typical CPU an 8-minute video takes 5 to 8 minutes to process, and you supply your own Google OpenRouter key, whose free tier covers 1,500 requests a day. On OpenShorts Cloud an NVIDIA GPU clips that same video in about 50 seconds, the OpenRouter key is included, paid plans post every clip to TikTok, Instagram, YouTube, Facebook, LinkedIn, Threads and Bluesky for you and Autopilot clips each new video on your channel on its own, and your clips stay retrievable from any browser.',
   ],
   [
     'Do the clips have a watermark?',

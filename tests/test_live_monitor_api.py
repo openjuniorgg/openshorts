@@ -265,9 +265,10 @@ async def test_enqueue_live_clip_async():
 def test_start_keeps_the_dashboard_key_in_memory(client):
     with patch("live_monitor.LiveMonitor._run_monitoring_loop"):
         res = client.post("/api/live-monitor/start", json={"channels": ["alanzoka"]},
-                          headers={"X-Gemini-Key": "KEY-FROM-DASHBOARD"})
+                          headers={"X-OpenRouter-Key": "KEY-FROM-DASHBOARD", "X-AI-Provider": "openrouter",
+                                   "X-AI-Model": "vendor/model"})
         assert res.status_code == 200
-        assert app.live_monitor_instance.gemini_api_key == "KEY-FROM-DASHBOARD"
+        assert app.live_monitor_instance.ai_api_key == "KEY-FROM-DASHBOARD"
 
 
 def test_start_defaults_to_a_120_second_highlight(client):

@@ -7,7 +7,7 @@ detail pass only ever reads the transcript.
 """
 import pytest
 
-import gemini_worker
+import ai_prompts
 import hook_grounding as hg
 
 
@@ -76,23 +76,23 @@ def test_clip_words_uses_word_timestamps_and_falls_back_to_segment_text():
 # --- the rewrite -----------------------------------------------------------
 
 @pytest.fixture
-def gemini(monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "k")
+def vision(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "k")
     monkeypatch.setattr(hg, "frames_at", lambda path, times, width=None: [b"jpg"] * len(times))
     seen = {}
 
-    def fake(frames, prompt, api_key):
+    def fake(frames, prompt):
         seen["frames"] = frames
         seen["prompt"] = prompt
         return {"on_screen": "Claude settings, MCP connector dialog for OpenShorts",
                 "viral_hook_text": "Conectando OpenShorts a Claude por MCP",
                 "video_title_for_youtube_short": "Así se conecta OpenShorts a Claude (MCP)"}
 
-    monkeypatch.setattr(hg, "_ask_gemini", fake)
+    monkeypatch.setattr(hg, "_ask_vision", fake)
     return seen
 
 
-def test_rewrites_hook_and_title_and_keeps_the_originals(gemini):
+def test_rewrites_hook_and_title_and_keeps_the_originals(vision):
     clip = {"viral_hook_text": "He automatizado la creación de mis clips con IA.",
             "video_title_for_youtube_short": "Clips con IA",
             "layout_ranges": SCREEN}
@@ -105,32 +105,32 @@ def test_rewrites_hook_and_title_and_keeps_the_originals(gemini):
     assert clip["video_title_for_youtube_short"].startswith("Así se conecta")
     assert clip["hook_grounding"]["before"]["viral_hook_text"].startswith("He automatizado")
     assert changed["on_screen"].startswith("Claude settings")
-    assert len(gemini["frames"]) == 3
-    assert "añadimos el conector" in gemini["prompt"]
-    assert "He automatizado" in gemini["prompt"]  # the model sees the current hook
-    assert "TRANSCRIPT_LANGUAGE: es" in gemini["prompt"]
+    assert len(vision["frames"]) == 3
+    assert "añadimos el conector" in vision["prompt"]
+    assert "He automatizado" in vision["prompt"]  # the model sees the current hook
+    assert "TRANSCRIPT_LANGUAGE: es" in vision["prompt"]
 
 
-def test_without_a_gemini_key_the_transcript_hook_stands(monkeypatch):
-    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+def test_without_an_ai_key_the_transcript_hook_stands(monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     clip = {"viral_hook_text": "old", "layout_ranges": SCREEN}
     assert hg.reground("clip.mp4", clip, {"segments": []}, 0, 30) is None
     assert clip["viral_hook_text"] == "old" and "hook_grounding" not in clip
 
 
 def test_model_failure_never_touches_the_clip(monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "k")
     monkeypatch.setattr(hg, "frames_at", lambda *a, **k: [b"jpg"])
-    monkeypatch.setattr(hg, "_ask_gemini", lambda *a: (_ for _ in ()).throw(RuntimeError("503")))
+    monkeypatch.setattr(hg, "_ask_vision", lambda *a: (_ for _ in ()).throw(RuntimeError("503")))
     clip = {"viral_hook_text": "old", "layout_ranges": SCREEN}
     assert hg.reground("clip.mp4", clip, {"segments": []}, 0, 30) is None
     assert clip["viral_hook_text"] == "old"
 
 
 def test_empty_answer_keeps_the_old_hook(monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "k")
     monkeypatch.setattr(hg, "frames_at", lambda *a, **k: [b"jpg"])
-    monkeypatch.setattr(hg, "_ask_gemini", lambda *a: {"viral_hook_text": ""})
+    monkeypatch.setattr(hg, "_ask_vision", lambda *a: {"viral_hook_text": ""})
     clip = {"viral_hook_text": "old", "layout_ranges": SCREEN}
     assert hg.reground("clip.mp4", clip, {"segments": []}, 0, 30) is None
     assert clip["viral_hook_text"] == "old"
@@ -139,7 +139,7 @@ def test_empty_answer_keeps_the_old_hook(monkeypatch):
 # --- the cheap half: the detail prompt itself -------------------------------
 
 def test_detail_prompt_forbids_topic_summary_hooks():
-    assert "ABOUT THIS MOMENT, NOT THE VIDEO" in gemini_worker.DETAIL_PROMPT_TEMPLATE
-    assert "{on_screen" not in gemini_worker.DETAIL_PROMPT_TEMPLATE  # no stray placeholders
-    gemini_worker.GROUNDED_HOOK_PROMPT.format(
+    assert "ABOUT THIS MOMENT, NOT THE VIDEO" in ai_prompts.DETAIL_PROMPT_TEMPLATE
+    assert "{on_screen" not in ai_prompts.DETAIL_PROMPT_TEMPLATE  # no stray placeholders
+    ai_prompts.GROUNDED_HOOK_PROMPT.format(
         language="es", current_hook="a", current_title="b", transcript="c")

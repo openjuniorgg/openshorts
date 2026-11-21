@@ -10,6 +10,16 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # the suite's behavior would depend on the developer's personal .env.
 os.environ["BILLING_ENABLED"] = "0"
 
+# The model choice is the user's, made in Settings. The suite plays the operator who names
+# the choice in the environment, so a request that sends no choice still has one to run with.
+# Tests that check the choice itself set or remove these with monkeypatch.
+os.environ["AI_PROVIDER"] = "openrouter"
+os.environ["OPENROUTER_MODEL"] = "test/text-model"
+os.environ["OLLAMA_MODEL"] = "test-local-model"
+# Every model answer the suite records goes to a scratch ledger, never to the server's output/.
+import tempfile  # noqa: E402
+os.environ["AI_USAGE_LOG"] = os.path.join(tempfile.mkdtemp(prefix="ai-usage-tests-"), "usage.jsonl")
+
 # The shared YouTube-account state (yt_account) lives in files: give the suite
 # its own directory and no pacing delay, so a test never waits on, or leaves a
 # cooldown for, another test or the developer's own output/ directory.

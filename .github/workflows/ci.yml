@@ -33,12 +33,12 @@ jobs:
       # pipeline modules import those lazily behind their feature gates, and
       # the tests exercise the gated-off paths. numpy+opencv cover the layout
       # modules, fastapi/boto3/PyJWT/python-multipart cover importing app.py
-      # for the MCP endpoint tests, google-genai covers gemini_worker, asyncpg
+      # for the MCP endpoint tests, asyncpg
       # reaches the Postgres service.
       - name: Install test dependencies
         run: >
           pip install pytest pillow httpx pydantic sqlalchemy greenlet numpy
-          opencv-python-headless python-dotenv google-genai fastapi boto3
+          opencv-python-headless python-dotenv fastapi boto3
           PyJWT email-validator python-multipart asyncpg
       - name: Run tests
         run: pytest tests/ -v

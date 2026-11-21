@@ -131,7 +131,7 @@ def test_source_range_reaches_the_reservation_and_the_job(dirs, monkeypatch):
         async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
             return await client.post("/api/process", json={
                 "url": "https://www.youtube.com/watch?v=long", "acknowledged": True,
-                "source_start": 130, "source_end": 460}, headers={"X-Gemini-Key": "k"})
+                "source_start": 130, "source_end": 460}, headers={"X-OpenRouter-Key": "k"})
     resp = asyncio.run(_do())
     assert resp.status_code == 200, resp.text
     assert seen["source_range"] == (130, 460)

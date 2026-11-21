@@ -1,7 +1,7 @@
 """Unit tests for the manual generation controls (discussion #65): the
 clip-duration band helper and the prompt templates it feeds.
 
-Pure logic only — no API calls, no heavy imports (gemini_worker's templates are
+Pure logic only — no API calls, no heavy imports (ai_prompts' templates are
 read via ast so the ML stack never loads in CI).
 """
 import ast
@@ -46,9 +46,8 @@ class TestClipDurationBounds:
 
 
 def _templates():
-    """The prompt template constants, read without importing gemini_worker
-    (which pulls google-genai — absent in the thin CI env)."""
-    with open(os.path.join(os.path.dirname(__file__), "..", "gemini_worker.py"), encoding="utf-8") as fh:
+    """The prompt template constants, read from ai_prompts.py without importing it."""
+    with open(os.path.join(os.path.dirname(__file__), "..", "ai_prompts.py"), encoding="utf-8") as fh:
         mod = ast.parse(fh.read())
     return {
         node.targets[0].id: node.value.value
@@ -70,7 +69,7 @@ class TestPromptTemplates:
     def test_visual_template_carries_band_and_count(self):
         text = _templates()["VISUAL_PROMPT_TEMPLATE"].format(
             video_duration=100, language="es", min_clips=2, max_clips=4,
-            min_secs=10.0, max_secs=20.0)
+            min_secs=10.0, max_secs=20.0, frame_seconds=9.4)
         assert "2–4 MOST engaging" in text
         assert "10 to 20 seconds" in text
 

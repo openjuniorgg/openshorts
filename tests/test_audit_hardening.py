@@ -30,7 +30,7 @@ def _client_call(method, path, **kw):
 
 def _post_process(body):
     return _client_call("post", "/api/process", json=body,
-                        headers={"X-Gemini-Key": "test-key"})
+                        headers={"X-OpenRouter-Key": "test-key"})
 
 
 @pytest.fixture()
@@ -177,13 +177,13 @@ def test_child_env_drops_server_secrets(monkeypatch):
                  "TELEGRAM_BOT_TOKEN", "AGENTLEDGER_API_KEY", "R2_SECRET_ACCESS_KEY",
                  "MANAGED_UPLOAD_POST_API_KEY", "GOOGLE_CLIENT_SECRET"):
         monkeypatch.setenv(name, "secret")
-    for name in ("YOUTUBE_COOKIES", "PROXY_URL", "STATIC_PROXY_URLS", "GEMINI_API_KEY",
+    for name in ("YOUTUBE_COOKIES", "PROXY_URL", "STATIC_PROXY_URLS", "OPENROUTER_API_KEY",
                  "BGUTIL_SCRIPT_PATH", "FFMPEG_ENCODER", "WHISPER_MODEL"):
         monkeypatch.setenv(name, "keep")
     env = app_module.child_env()
     for name in app_module.CHILD_ENV_DENYLIST:
         assert name not in env
-    for name in ("YOUTUBE_COOKIES", "PROXY_URL", "STATIC_PROXY_URLS", "GEMINI_API_KEY",
+    for name in ("YOUTUBE_COOKIES", "PROXY_URL", "STATIC_PROXY_URLS", "OPENROUTER_API_KEY",
                  "BGUTIL_SCRIPT_PATH", "FFMPEG_ENCODER", "WHISPER_MODEL"):
         assert env[name] == "keep"
 
@@ -221,7 +221,7 @@ def test_job_env_has_no_server_secrets(dirs, calls, monkeypatch):
     resp = _post_process({"url": "https://www.youtube.com/watch?v=ok", "acknowledged": True})
     env = app_module.jobs[resp.json()["job_id"]]["env"]
     assert "STRIPE_SECRET_KEY" not in env and "JWT_SECRET" not in env
-    assert env["GEMINI_API_KEY"] == "test-key"
+    assert env["OPENROUTER_API_KEY"] == "test-key"
 
 
 # --------------------------------------------------------------------------- #
@@ -267,9 +267,11 @@ def test_render_status_is_owner_only(cloud_as, monkeypatch):
 
 
 def test_thumbnail_generate_refuses_someone_elses_session(cloud_as, monkeypatch):
+    import ai_provider
+
     async def _gemini(request):
-        return "k"
-    monkeypatch.setattr(app_module, "resolve_gemini", _gemini)
+        return ai_provider.Settings(provider="openrouter", model="m", api_key="k")
+    monkeypatch.setattr(app_module, "resolve_ai", _gemini)
     monkeypatch.setattr(app_module, "thumbnail_sessions", {"s-1": {"user_id": "owner"}})
     cloud_as["user"] = _User("stranger")
     resp = _client_call("post", "/api/thumbnail/generate",

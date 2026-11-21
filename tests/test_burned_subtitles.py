@@ -38,5 +38,5 @@ def test_disabled_or_keyless_check_never_calls_out(monkeypatch):
     monkeypatch.setattr(burned_subtitles, "ENABLED", False)
     assert burned_subtitles.detect("v.mp4") is None
     monkeypatch.setattr(burned_subtitles, "ENABLED", True)
-    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     assert burned_subtitles.detect("v.mp4") is None

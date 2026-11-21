@@ -19,7 +19,8 @@ puede pedirlo en info@openshorts.app.
 
 | Proveedor | Entidad y país | Qué recibe | Garantía de transferencia | DPA |
 |---|---|---|---|---|
-| **Google (Gemini API)** | Google LLC / Google Ireland Ltd. — EE. UU. | Transcripción, fotogramas muestreados (pueden incluir caras), foto de referencia del presentador para miniaturas, y el **archivo de vídeo completo** solo en la comprobación de encuadre "screencast" (se borra del File API en cuanto responde) | EU-US Data Privacy Framework (Google LLC certificado) + CCT | Google Cloud / AI Studio paid data terms — **verificar que la clave gestionada pertenece a un proyecto de pago**: los términos gratuitos permiten entrenamiento |
+| **OpenRouter** (solo si el servidor usa `AI_PROVIDER=openrouter`) | OpenRouter, Inc. — EE. UU. | Transcripción, fotogramas muestreados (pueden incluir caras), foto de referencia del presentador para miniaturas, y el texto de las instrucciones. OpenRouter reenvía cada petición al proveedor del modelo elegido, que puede estar fuera del EEE | **Pendiente de verificar**: este repositorio no confirma ninguna garantía de transferencia para OpenRouter ni para el proveedor de cada modelo | Pendiente de revisar sus términos y la política de datos del modelo elegido **antes** de aceptar usuarios de la UE |
+| **Ollama** (solo si el servidor usa `AI_PROVIDER=ollama`) | No es un subprocesador: el modelo corre en la máquina del operador | Nada sale del servidor hacia terceros | No aplica | No aplica |
 | **ElevenLabs** | ElevenLabs Inc. — EE. UU. | Audio del clip para doblaje (voz de personas reales), texto para TTS | DPF (certificado) + CCT | Pendiente de firma/archivo |
 | **fal.ai** | Features & Labels, Inc. — EE. UU. | Foto del actor (puede ser de una persona real), audio a sincronizar, vídeo generado. Modelos: Flux 2 Pro, Kling AI-Avatar, Hailuo | **Sin certificación DPF conocida → CCT obligatorias** | Pendiente de firma/archivo |
 
@@ -68,10 +69,10 @@ puede pedirlo en info@openshorts.app.
 
 Nada de esto se puede hacer desde el repositorio; queda para el responsable:
 
-1. **Confirmar que la `MANAGED_GEMINI_API_KEY` pertenece a un proyecto de
-   pago.** Los términos gratuitos de AI Studio permiten usar los datos para
-   mejorar los modelos, lo que haría falsa la frase "no se entrena con tu
-   contenido".
+1. **Confirmar la política de datos de OpenRouter y del proveedor de cada modelo**
+   elegido por el usuario en Ajustes o en `OPENROUTER_MODEL` del servidor (la clave gestionada es `MANAGED_OPENROUTER_API_KEY`).
+   Si algún proveedor usa las peticiones para entrenar, la frase "no se entrena con
+   tu contenido" sería falsa: hay que cambiarla o elegir modelos que no entrenen.
 2. **Firmar y archivar** los DPA de ElevenLabs, fal.ai (+ CCT) y Namecheap
    (+ CCT). Guardar los PDF con fecha.
 3. **Verificar la jurisdicción del bucket R2** (debe ser UE) y la región de S3.

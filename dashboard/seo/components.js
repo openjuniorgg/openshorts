@@ -115,7 +115,7 @@ export const DEMOS = {
   talk: {
     video: '/demo/case-talk.mp4',
     poster: '/screens/case-talk.webp',
-    caption: 'A 39-minute interview: Gemini picked the moment, the crop follows the speaker, and the captions come from the word-level transcript.',
+    caption: 'A 39-minute interview: the AI model picked the moment, the crop follows the speaker, and the captions come from the word-level transcript.',
     credit:
       '<a href="https://www.youtube.com/watch?v=aqFhllJJzoQ" rel="noopener">Startup Founder &amp; CEO Mark Bush on How to Overcome Adversity</a>, Foundation for Economic Education, CC BY',
   },
@@ -205,7 +205,7 @@ export function costCalculator(tools, { minutes = 300, note } = {}) {
   </div>
   <ul class="bars" id="${id}-bars">${barsHtml(list, minutes, 'monthly')}</ul>
   <p class="calc-note">Cheapest published plan that covers that many minutes, per month. Prices checked ${esc(checked)}.
-  ${note ? esc(note) : 'Self-hosted needs Docker and your own Gemini key, whose free tier covers 1,500 requests a day.'}</p>
+  ${note ? esc(note) : 'Self-hosted needs Docker and your own OpenRouter key, whose free tier covers 1,500 requests a day.'}</p>
 </div>
 <script>
 (function(){

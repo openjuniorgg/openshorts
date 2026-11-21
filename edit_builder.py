@@ -1,13 +1,13 @@
 """
 Deterministic FFmpeg filter builder for AI edit decision lists.
 
-The old Auto Edit asked Gemini to write a raw -vf filter string, which broke
+The old Auto Edit asked the AI model to write a raw -vf filter string, which broke
 in two ways: fragile syntax, and zooms that cropped burned-in captions/hooks
-out of frame. Now Gemini only decides WHAT to do and WHEN (an edit decision
+out of frame. Now the AI model only decides WHAT to do and WHEN (an edit decision
 list); this module turns that list into a safe filter string with hard caps
 (max zoom strength, no zooms over captioned videos, no overlapping zooms).
 
-Stdlib-only so it stays unit-testable without FFmpeg or the Gemini SDK.
+Stdlib-only so it stays unit-testable without FFmpeg or the AI model SDK.
 """
 
 # Per-type hard limits. "zoom" types re-frame the picture and are dropped

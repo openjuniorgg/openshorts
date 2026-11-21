@@ -1,6 +1,6 @@
 """Resolution of server-owned (managed) provider keys for entitled users.
 
-Only Gemini and Upload-Post are managed in v1. ElevenLabs and fal stay BYOK.
+Only OpenRouter and Upload-Post are managed in v1. ElevenLabs and fal stay BYOK.
 The functions here are sync and read from the ``CurrentUser`` snapshot so they
 can be called inline from ``app.py``'s resolve helpers without awaiting.
 """
@@ -17,8 +17,8 @@ def has_active_entitlement(user) -> bool:
     return bool(user is not None and getattr(user, "entitled", False))
 
 
-def gemini_key() -> Optional[str]:
-    return settings.managed_gemini_key or None
+def openrouter_key() -> Optional[str]:
+    return settings.managed_openrouter_key or None
 
 
 def upload_post_key() -> Optional[str]:

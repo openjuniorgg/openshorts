@@ -81,10 +81,10 @@ def test_api_key_goes_to_callback_but_not_to_clip_list(out_dir):
         received.update(meta)
 
     monitor = LiveMonitor(channels=["gaules"], on_clip_ready=on_clip, output_dir=out_dir, mock_extraction=True)
-    monitor.trigger_clip("gaules", reason="manual_test", gemini_api_key="SECRET-KEY")
+    monitor.trigger_clip("gaules", reason="manual_test", ai_api_key="SECRET-KEY")
 
-    assert received.get("gemini_api_key") == "SECRET-KEY"
-    assert all("gemini_api_key" not in c for c in monitor.captured_clips)
+    assert received.get("ai_api_key") == "SECRET-KEY"
+    assert all("ai_api_key" not in c for c in monitor.captured_clips)
     assert "SECRET-KEY" not in repr(monitor.get_status())
 
 

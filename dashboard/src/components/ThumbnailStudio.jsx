@@ -79,11 +79,11 @@ function DragDropZone({ label, accept, onFile, file, onClear, icon }) {
   );
 }
 
-export default function ThumbnailStudio({ geminiApiKey, uploadPostKey, uploadUserId, managed = false, onCreateClips = null }) {
-  // Managed (hosted plan): Gemini runs server-side via the bearer token, no BYOK key.
-  // Only send X-Gemini-Key for self-host BYOK. apiFetch attaches the bearer token.
-  const keyHeader = geminiApiKey ? { 'X-Gemini-Key': geminiApiKey } : {};
-  const needsKey = !geminiApiKey && !managed;
+export default function ThumbnailStudio({ openrouterKey, uploadPostKey, uploadUserId, managed = false, onCreateClips = null }) {
+  // Managed (hosted plan): the AI model runs server-side via the bearer token, no BYOK key.
+  // Only send X-the AI model-Key for self-host BYOK. apiFetch attaches the bearer token.
+  const keyHeader = openrouterKey ? { 'X-OpenRouter-Key': openrouterKey } : {};
+  const needsKey = !openrouterKey && !managed;
   // Step management
   const [step, setStep] = useState(0);
   const [mode, setMode] = useState(null); // 'video' or 'manual'
@@ -161,7 +161,7 @@ export default function ThumbnailStudio({ geminiApiKey, uploadPostKey, uploadUse
 
   // --- Step 1: Analyze Video ---
   const handleAnalyze = async () => {
-    if (needsKey) return alert('Please set your Gemini API key in Settings first.');
+    if (needsKey) return alert('Please set your OpenRouter API key in Settings first.');
     setIsAnalyzing(true);
 
     try {
@@ -273,7 +273,7 @@ export default function ThumbnailStudio({ geminiApiKey, uploadPostKey, uploadUse
 
   // --- Step 3: Generate Thumbnails ---
   const handleGenerate = async () => {
-    if (needsKey) return alert('Please set your Gemini API key in Settings first.');
+    if (needsKey) return alert('Please set your OpenRouter API key in Settings first.');
     const finalTitle = selectedTitle || manualTitle;
     if (!finalTitle) return alert('Please select or enter a title first.');
 
@@ -304,7 +304,7 @@ export default function ThumbnailStudio({ geminiApiKey, uploadPostKey, uploadUse
 
       const data = await res.json();
       if (!data.thumbnails || data.thumbnails.length === 0) {
-        throw new Error('No thumbnails were generated. Your Gemini API key may not have access to image generation.');
+        throw new Error('No thumbnails were generated. Your OpenRouter API key may not have access to image generation.');
       }
       setGeneratedThumbnails(data.thumbnails);
     } catch (e) {
@@ -353,7 +353,7 @@ export default function ThumbnailStudio({ geminiApiKey, uploadPostKey, uploadUse
 
   // --- Description Generation ---
   const handleGenerateDescription = async () => {
-    if (needsKey) return alert('Please set your Gemini API key in Settings first.');
+    if (needsKey) return alert('Please set your OpenRouter API key in Settings first.');
     const finalTitle = selectedTitle || manualTitle;
     if (!finalTitle) return alert('Please select a title first.');
     if (!sessionId) return alert('No session available.');
@@ -500,13 +500,13 @@ export default function ThumbnailStudio({ geminiApiKey, uploadPostKey, uploadUse
           <StepIndicator steps={STEPS} current={step} />
         </div>
 
-        {/* Gemini API Key Warning (self-host BYOK only; managed uses server key) */}
+        {/* OpenRouter API Key Warning (self-host BYOK only; managed uses server key) */}
         {needsKey && (
           <div className="mb-6 p-5 bg-warn/10 border border-warn/30 rounded-card flex items-start gap-3">
             <AlertCircle size={18} className="text-warn shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-warn lowercase">Gemini API Key Required</p>
-              <p className="text-xs text-muted mt-1">YouTube Studio requires a Google Gemini API key to function. Please configure it in the <strong>Settings</strong> tab before using this feature. Gemini's free tier includes 1,500 requests per day.</p>
+              <p className="text-sm font-medium text-warn lowercase">OpenRouter API Key Required</p>
+              <p className="text-xs text-muted mt-1">YouTube Studio requires a Google OpenRouter API key to function. Please configure it in the <strong>Settings</strong> tab before using this feature. your provider's free tier applies.</p>
             </div>
           </div>
         )}
@@ -910,7 +910,7 @@ export default function ThumbnailStudio({ geminiApiKey, uploadPostKey, uploadUse
                               )}
                             </span>
                             {thumb.why && <p className="text-xs text-ink2 mt-1 truncate">{thumb.why}</p>}
-                            {thumb.fallback && <p className="text-xs text-warn mt-1">Gemini refused to draw this person (public figures are blocked), so it was rendered without them.</p>}
+                            {thumb.fallback && <p className="text-xs text-warn mt-1">the AI model refused to draw this person (public figures are blocked), so it was rendered without them.</p>}
                           </div>
                           <button
                             onClick={(e) => { e.stopPropagation(); handleDownload(url); }}

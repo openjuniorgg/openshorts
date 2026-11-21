@@ -117,8 +117,8 @@ in full.</p>
 <h2>7. AI processing — what runs where</h2>
 <p>The service uses AI systems to do its work, and we name them: transcription
 runs on our own servers (Whisper-family and NVIDIA Parakeet models); moment
-selection, titling, layout decisions and generated thumbnails use Google's
-Gemini API; optional voice dubbing and AI voices use ElevenLabs; AI Shorts
+selection, titling, layout decisions and generated thumbnails use an AI model through
+OpenRouter (or, on a server that runs Ollama, a model on that same machine); optional voice dubbing and AI voices use ElevenLabs; AI Shorts
 uses fal.ai (Flux for actor images, Kling and Hailuo for the animated
 presenter). Your video content, audio, transcript, sampled frames and any
 actor photo you supply are sent to these providers only as needed to perform
@@ -403,7 +403,7 @@ nuestros servidores, es decir que el contenido pasa por ellos y esta cláusula
 <p>El servicio usa sistemas de IA y los nombramos: la transcripción se ejecuta
 en nuestros propios servidores (modelos de la familia Whisper y NVIDIA
 Parakeet); la selección de momentos, los títulos, las decisiones de encuadre y
-las miniaturas generadas usan la API Gemini de Google; el doblaje de voz y las
+las miniaturas generadas usan un modelo de IA a través de OpenRouter (o, en un servidor con Ollama, un modelo en esa misma máquina); el doblaje de voz y las
 voces de IA opcionales usan ElevenLabs; AI Shorts usa fal.ai (Flux para las
 imágenes de actor, Kling y Hailuo para el presentador animado). Tu vídeo,
 audio, transcripción, fotogramas muestreados y cualquier foto de actor que
@@ -713,13 +713,7 @@ is kept in the public repository at
 <a href="https://github.com/mutonby/openshorts/blob/main/docs/compliance/subprocessors.md">docs/compliance/subprocessors.md</a>
 and changes are recorded there.</p>
 <ul>
-<li><strong>Google (Gemini API)</strong> — AI analysis to select moments,
-layouts, titles and thumbnails. It receives your video's transcript and
-sampled frames (which may show faces), the reference photo you pick for a
-thumbnail, and — only when the "screencast" layout check runs — the source
-video file itself, which we delete from Google's file store as soon as the
-answer comes back rather than letting it expire there. Google's paid API terms
-prohibit using customer data to train models. USA.</li>
+<li><strong>OpenRouter</strong> (only when the server uses OpenRouter; not used when the operator runs Ollama) — AI analysis to select moments, layouts, titles and thumbnails. It receives your video's transcript, sampled still frames (which may show faces), the reference photo you pick for a thumbnail, and the instructions we send. OpenRouter forwards each request to the model provider you configured, which may be outside the EU. The sampled frames are deleted as soon as the answer comes back; the transcript stays with your job, as described in the retention section. The data terms of OpenRouter and of your model provider apply. USA.</li>
 <li><strong>ElevenLabs</strong> — AI dubbing and AI voices, only when you ask
 for it. Receives the clip's audio, which means the voice of whoever is
 speaking in it. USA.</li>
@@ -981,14 +975,7 @@ se mantiene en el repositorio público en
 <a href="https://github.com/mutonby/openshorts/blob/main/docs/compliance/subprocessors.md">docs/compliance/subprocessors.md</a>,
 donde también se registran los cambios.</p>
 <ul>
-<li><strong>Google (API Gemini)</strong> — análisis con IA para seleccionar
-momentos, encuadres, títulos y miniaturas. Recibe la transcripción de tu vídeo
-y fotogramas muestreados (que pueden mostrar caras), la foto de referencia que
-elijas para una miniatura y — solo cuando se ejecuta la comprobación de
-encuadre "screencast" — el propio archivo de vídeo de origen, que borramos del
-almacén de archivos de Google en cuanto llega la respuesta en lugar de dejar
-que caduque allí. Las condiciones de la API de pago de Google prohíben usar
-los datos de clientes para entrenar modelos. EE. UU.</li>
+<li><strong>OpenRouter</strong> (solo cuando el servidor usa OpenRouter; no se usa cuando el operador ejecuta Ollama) — análisis con IA para seleccionar momentos, encuadres, títulos y miniaturas. Recibe la transcripción de tu vídeo, fotogramas fijos muestreados (que pueden mostrar caras), la foto de referencia que elijas para una miniatura y las instrucciones que le enviamos. OpenRouter reenvía cada petición al proveedor del modelo configurado, que puede estar fuera de la UE. Los fotogramas se borran en cuanto llega la respuesta; la transcripción se conserva con tu trabajo, como se describe en la sección de retención. Se aplican las condiciones de datos de OpenRouter y del proveedor del modelo. EE. UU.</li>
 <li><strong>ElevenLabs</strong> — doblaje y voces con IA, solo cuando lo
 solicitas. Recibe el audio del clip, es decir la voz de quien habla en él.
 EE. UU.</li>

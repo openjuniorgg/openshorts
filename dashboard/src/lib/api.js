@@ -2,6 +2,7 @@
 // Adds the Authorization: Bearer header from the stored session token, and turns
 // a 402 (quota exceeded) into a typed QuotaError the UI can catch to prompt a top-up.
 import { getApiUrl } from '../config';
+import { aiHeaders } from './aiSettings';
 
 export const AUTH_TOKEN_KEY = 'openshorts_auth';
 
@@ -40,6 +41,10 @@ export async function apiFetch(path, options = {}) {
   const headers = new Headers(options.headers || {});
   const token = getToken();
   if (token) headers.set('Authorization', `Bearer ${token}`);
+  // The provider and model the user chose in Settings travel with every request.
+  for (const [name, value] of Object.entries(aiHeaders())) {
+    if (!headers.has(name)) headers.set(name, value);
+  }
 
   const res = await fetch(getApiUrl(path), { ...options, headers });
 
@@ -84,9 +89,9 @@ export async function apiJson(path, options = {}) {
 
 // Live stream monitor client helpers
 export async function startLiveMonitor(channels, highlightSeconds = 120) {
-  const geminiKey = localStorage.getItem('gemini_key');
+  const openrouterKey = localStorage.getItem('openrouter_key');
   const headers = { 'Content-Type': 'application/json' };
-  if (geminiKey) headers['X-Gemini-Key'] = geminiKey;
+  if (openrouterKey) headers['X-OpenRouter-Key'] = openrouterKey;
   return apiJson('/api/live-monitor/start', {
     method: 'POST',
     headers,
@@ -106,9 +111,9 @@ export async function getLiveMonitorStatus() {
 }
 
 export async function triggerLiveClip(channel) {
-  const geminiKey = localStorage.getItem('gemini_key');
+  const openrouterKey = localStorage.getItem('openrouter_key');
   const headers = { 'Content-Type': 'application/json' };
-  if (geminiKey) headers['X-Gemini-Key'] = geminiKey;
+  if (openrouterKey) headers['X-OpenRouter-Key'] = openrouterKey;
   return apiJson('/api/live-monitor/clip', {
     method: 'POST',
     headers,

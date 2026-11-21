@@ -110,7 +110,7 @@ def _post_process(json_body):
         transport = httpx.ASGITransport(app=app_module.app)
         async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
             return await client.post("/api/process", json=json_body,
-                                     headers={"X-Gemini-Key": "test-key"})
+                                     headers={"X-OpenRouter-Key": "test-key"})
     return asyncio.run(_do())
 
 

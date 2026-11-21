@@ -11,7 +11,7 @@ Three endpoints, all anonymous, all deliberately cheap:
   WebVTT captions TikTok's own player shows, read through yt-dlp inside
   ``ssrf_guard.guarded()`` (a share link redirects), direct then statics.
 * ``POST /api/tools/youtube-metadata`` writes titles, a description or tags
-  for a video from a short brief, with one Gemini text call.
+  for a video from a short brief, with one text call to the AI model.
 
 Why yt-dlp and the static proxies. YouTube answers every anonymous request
 from a datacenter IP with "Sign in to confirm you're not a bot" (measured from
@@ -840,47 +840,29 @@ def shape_result(mode: str, data: dict) -> dict:
     return {"tags": tags, "characters": len(",".join(tags))}
 
 
-def _gemini_key():
+def _ai():
+    """The model settings the tools run with: the server's own configuration, since no request
+    picks a model here. In cloud the managed key is used with the operator's model. None when
+    nothing is configured."""
+    import ai_provider
+    key = None
     try:
         from cloud import managed_keys
-        key = managed_keys.gemini_key()
-        if key:
-            return key
+        key = managed_keys.openrouter_key() if ai_provider.billing_enabled() else None
     except Exception:
-        pass
-    return os.environ.get("GEMINI_API_KEY", "").strip() or None
-
-
-METADATA_MODEL = (os.environ.get("FREE_TOOLS_GEMINI_MODEL")
-                  or os.environ.get("GEMINI_MODEL_THUMBNAIL") or "gemini-3.7-flash")
-
-
-def _thinking_config(types):
+        key = None
     try:
-        return types.ThinkingConfig(thinking_level="low")
-    except Exception:  # older SDK without thinking_level
+        settings = ai_provider.resolve(api_key=key)
+    except ai_provider.AIUnavailableError:
         return None
+    return settings if settings.ready else None
 
 
 def _generate(prompt: str) -> dict:
-    from google import genai
-    from google.genai import types
-    client = genai.Client(api_key=_gemini_key())
-    resp = client.models.generate_content(
-        model=METADATA_MODEL,
-        contents=[prompt],
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            # Thinking tokens count against max_output_tokens on the 3.x
-            # models; at 2048 with default thinking the description came back
-            # cut mid-string. Low thinking + a roomier cap keeps it whole and
-            # the cost per call at a few thousand tokens.
-            max_output_tokens=6000,
-            temperature=0.9,
-            thinking_config=_thinking_config(types),
-        ),
-    )
-    text = (resp.text or "").strip()
+    import ai_provider
+    text, _cost = ai_provider.generate_text(
+        prompt, config=_ai(), json_mode=True, temperature=0.9)
+    text = (text or "").strip()
     text = re.sub(r"^```(?:json)?|```$", "", text).strip()
     return json.loads(text)
 
@@ -898,9 +880,9 @@ async def youtube_metadata(payload: MetadataRequest, request: Request):
     topic = topic[:MAX_BRIEF]
     keyword = re.sub(r"[\"\n\r{}]", " ", (payload.keyword or "")).strip()[:80]
     audience = re.sub(r"[\n\r{}]", " ", (payload.audience or "")).strip()[:120]
-    if not _gemini_key():
+    if _ai() is None:
         raise HTTPException(status_code=503, detail={
-            "code": "not_configured", "message": "This tool needs a Gemini API key on the server."})
+            "code": "not_configured", "message": "This tool needs an AI model configured on the server: AI_PROVIDER with OPENROUTER_MODEL or OLLAMA_MODEL."})
     _enforce("metadata", request)
     prompt = build_prompt(mode, topic.replace("{", "(").replace("}", ")"), keyword, audience)
     last = None

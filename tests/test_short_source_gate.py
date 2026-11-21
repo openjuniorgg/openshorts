@@ -24,7 +24,7 @@ def _post_process(json_body=None, files=None, data=None):
                                      base_url="http://testserver") as client:
             return await client.post(
                 "/api/process", json=json_body, files=files, data=data,
-                headers={"X-Gemini-Key": "test-key"},
+                headers={"X-OpenRouter-Key": "test-key"},
             )
     return asyncio.run(_do())
 

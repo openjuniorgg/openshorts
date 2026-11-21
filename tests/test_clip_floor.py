@@ -38,10 +38,10 @@ def _run(monkeypatch, detail_responses):
     """Drive get_viral_clips with canned stage results; returns (clips, calls)."""
     calls = []
 
-    def fake_stage(client, model, prompt, schema):
+    def fake_stage(prompt, schema, *, images=(), temperature=0.2):
         payload = json.loads(prompt.split("WINDOWS_JSON:")[-1].split("Return only:")[0]
                              if "WINDOWS_JSON:" in prompt else "[]")
-        if schema is main.gemini_worker.ScoreResponse:
+        if schema is main.ai_prompts.ScoreResponse:
             ids = [w["id"] for w in payload]
             calls.append(("score", ids))
             # The prompt asks for every window to be scored.
@@ -54,9 +54,8 @@ def _run(monkeypatch, detail_responses):
         calls.append(("detail", ids))
         return {"shorts": detail_responses.pop(0)}, None
 
-    monkeypatch.setattr(main, "_run_gemini_stage", fake_stage)
-    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    monkeypatch.setattr(main.genai, "Client", lambda api_key=None: object())
+    monkeypatch.setattr(main, "_run_ai_stage", fake_stage)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
     out = main.get_viral_clips(_transcript(), 600.0)
     return (out or {}).get("shorts", []), calls
 

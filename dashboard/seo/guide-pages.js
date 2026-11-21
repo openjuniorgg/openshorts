@@ -89,11 +89,11 @@ const SELF_FAQ = [
   },
   {
     q: 'Which API keys do I need?',
-    a: 'Only a Google Gemini key for the AI features, and its free tier covers individual use. You can replace it with a local LLM through LLM_BASE_URL. ElevenLabs (dubbing), fal.ai (AI Shorts) and Upload-Post (auto-posting) are optional and only needed for those features.',
+    a: 'Only an OpenRouter key for the AI features. You can replace it with a model on your own machine through Ollama (AI_PROVIDER=ollama), which needs no key. ElevenLabs (dubbing), fal.ai (AI Shorts) and Upload-Post (auto-posting) are optional and only needed for those features.',
   },
   {
     q: 'Does my video leave my machine?',
-    a: 'The video file stays local: transcription, scene detection, reframing and encoding run on your machine. With Gemini, the moment picker receives the transcript text, the automatic layout picker receives a few still frames, and videos with no speech are sent to Gemini to be clipped by what is on screen. With a local LLM and no Gemini key, nothing leaves the machine at all.',
+    a: 'The video file stays local: transcription, scene detection, reframing and encoding run on your machine. With the AI model, the moment picker receives the transcript text, the automatic layout picker receives a few still frames, and videos with no speech are sent to the AI model to be clipped by what is on screen. With a local LLM and no OpenRouter key, nothing leaves the machine at all.',
   },
   {
     q: 'Is there an open source AI clipping API?',
@@ -105,7 +105,7 @@ const SELF_FAQ = [
   },
   {
     q: 'How much does self-hosting really cost compared to Opus Clip or Vizard?',
-    a: `The software is $0. What you pay is the machine, its electricity and your time, plus Gemini usage, which is typically under a cent per 10-minute video on paid tiers and free within the free tier. Opus Clip and Vizard bill one credit per source minute: at 300 minutes a month that is ${money(priceFor('opus-clip', 300, 'monthly').price)}/month on Opus Clip and ${money(priceFor('vizard', 300, 'monthly').price)}/month on Vizard, billed monthly.`,
+    a: `The software is $0. What you pay is the machine, its electricity and your time, plus the AI model usage, which is typically under a cent per 10-minute video on paid tiers and free within the free tier. Opus Clip and Vizard bill one credit per source minute: at 300 minutes a month that is ${money(priceFor('opus-clip', 300, 'monthly').price)}/month on Opus Clip and ${money(priceFor('vizard', 300, 'monthly').price)}/month on Vizard, billed monthly.`,
   },
 ]
 
@@ -139,7 +139,7 @@ const selfHosted = () => {
     },
     tldr: [
       'OpenShorts is an open source AI clip maker you can self-host: MIT-licensed, started with one <code>docker compose up</code>, and running the same pipeline as the hosted service. It finds the strongest moments in a long video, reframes them to 9:16 with face tracking and burns in word-level subtitles.',
-      'You need Docker, 8 GB+ of RAM and a Google Gemini key (free tier, or a local LLM instead). An optional NVIDIA GPU cuts an 8-minute video from 5 to 8 minutes of processing to about one.',
+      'You need Docker, 8 GB+ of RAM and a Google OpenRouter key (free tier, or a local LLM instead). An optional NVIDIA GPU cuts an 8-minute video from 5 to 8 minutes of processing to about one.',
       `Self-hosted has no watermark, no cap and no per-minute meter. The hosted edition, OpenShorts Cloud, exists for people who would rather not run it: free plan with a watermark, paid from ${money(STARTER.monthly)}/month.`,
     ],
     facts: [
@@ -171,7 +171,7 @@ detail is in <a href="/how-openshorts-works">how OpenShorts works</a>.</p>
 <ul>
 <li><strong>Docker and Docker Compose.</strong> Linux, macOS, or Windows with Docker Desktop on the WSL2 backend.</li>
 <li><strong>8 GB of RAM or more</strong> and a modern multi-core CPU. The first start downloads the transcription and detection models.</li>
-<li><strong>A Google Gemini API key</strong> for the AI features. The free tier is enough for individual use, or you can point the moment picker at a local LLM instead.</li>
+<li><strong>A Google OpenRouter API key</strong> for the AI features. The free tier is enough for individual use, or you can point the moment picker at a local LLM instead.</li>
 <li><strong>Optional: an NVIDIA GPU with NVENC</strong> (an RTX 4060 class card is plenty). 8 GB of VRAM fits the large-v3-turbo transcription model in fp16 plus the detection models. The GPU build adds about 2 GB to the image.</li>
 </ul>
 <p>The default image is CPU-only, and that is a perfectly good way to start. On a
@@ -185,7 +185,7 @@ cd openshorts
 cp .env.example .env        # optional: S3 backup and other settings
 docker compose up --build</code></pre>
 <p>Open <code>http://localhost:5175</code>, go to <strong>Settings</strong> and
-paste your Gemini key (plus fal.ai, ElevenLabs and Upload-Post keys if you want
+paste your OpenRouter key (plus fal.ai, ElevenLabs and Upload-Post keys if you want
 those features). Then paste a YouTube link or upload a file in the Clip Generator.
 The backend API listens on port 8000.</p>
 
@@ -220,28 +220,28 @@ has the verification commands.</p>
 <table>
 <thead><tr><th>Key</th><th>Needed for</th><th>Cost</th></tr></thead>
 <tbody>
-<tr><td class="os">Google Gemini</td><td>Picking the moments, titles, the layout picker</td><td>Free tier for individual use; under a cent per 10-minute video on paid tiers</td></tr>
-<tr><td class="os">Local LLM (optional)</td><td>Replaces Gemini for moment picking: Ollama, LM Studio, vLLM, llama.cpp</td><td>$0, your hardware</td></tr>
+<tr><td class="os">the AI model</td><td>Picking the moments, titles, the layout picker</td><td>Free tier for individual use; under a cent per 10-minute video on paid tiers</td></tr>
+<tr><td class="os">Local LLM (optional)</td><td>Replaces the AI model for moment picking: Ollama, LM Studio, vLLM, llama.cpp</td><td>$0, your hardware</td></tr>
 <tr><td class="os">ElevenLabs (optional)</td><td>Dubbing into 30+ languages, voice-over</td><td>Billed by ElevenLabs; free tier available</td></tr>
 <tr><td class="os">fal.ai (optional)</td><td>AI Shorts: AI actors, lip-sync, B-roll</td><td>Pay per video, billed by fal.ai</td></tr>
 <tr><td class="os">Upload-Post (optional)</td><td>Posting to TikTok, Instagram and YouTube</td><td>Free tier available</td></tr>
 </tbody>
 </table>
-<p>To run without any Google key, set <code>LLM_BASE_URL</code> and
-<code>LLM_MODEL</code> in <code>.env</code> to any OpenAI-compatible server. Give
-it a context of 16k tokens (Ollama defaults to 4k and truncates silently) and a
-7-8B model or larger; 3B models do not return valid JSON reliably. Without
-Gemini, the features that need to look at frames fall back: the automatic layout
-picker uses the plain face-tracking crop, and a video with no speech cannot be
-clipped.</p>
+<p>To run without any key, set <code>AI_PROVIDER=ollama</code> and
+<code>OLLAMA_MODEL</code> in <code>.env</code>, and point <code>OLLAMA_BASE_URL</code> at your
+Ollama server. The app asks for a context of <code>OLLAMA_NUM_CTX</code> tokens on every call
+(32k by default, because Ollama's own default is shorter and truncates silently). Use a 7-8B
+model or larger; 3B models do not return valid JSON reliably. Without a vision model, the
+features that need to look at frames fall back: the automatic layout picker uses the plain
+face-tracking crop, and a video with no speech cannot be clipped.</p>
 
 <h2>Privacy: what leaves your machine</h2>
 <p>The video file stays where it is. Downloading, transcription, scene detection,
 face tracking, reframing and encoding all run locally, and the clips are written
 to your disk. What goes out depends on the keys you configure:</p>
 <ul>
-<li><strong>With Gemini:</strong> the moment picker sends the transcript text, never the video. The automatic layout picker sends a handful of still frames. A video with no speech (gameplay, B-roll) is sent to Gemini so it can be clipped by what is on screen.</li>
-<li><strong>With a local LLM and no Gemini key:</strong> nothing leaves the machine.</li>
+<li><strong>With the AI model:</strong> the moment picker sends the transcript text, never the video. The automatic layout picker sends a handful of still frames. A video with no speech (gameplay, B-roll) is sent to the AI model so it can be clipped by what is on screen.</li>
+<li><strong>With a local LLM and no OpenRouter key:</strong> nothing leaves the machine.</li>
 <li><strong>Optional features</strong> call their providers only when you use them: dubbing sends audio to ElevenLabs, AI Shorts sends prompts to fal.ai, posting sends the finished clip to Upload-Post.</li>
 </ul>
 <p>That is the real reason teams self-host a clipper: unreleased episodes, client
@@ -262,7 +262,7 @@ ${costCalculator(['opus-clip', 'vizard', 'vidyo-ai'], { minutes: 600 })}
 <ul>
 <li><strong>The machine.</strong> If you already own a desktop with 8 GB+ of RAM, nothing extra. A GPU is a one-off purchase that pays for itself only at high volume.</li>
 <li><strong>Electricity</strong> for the minutes it spends processing.</li>
-<li><strong>API usage.</strong> Gemini is free within its free tier and under a cent per 10-minute video beyond it. Dubbing and AI Shorts are billed by ElevenLabs and fal.ai if you use them.</li>
+<li><strong>API usage.</strong> the AI model is free within its free tier and under a cent per 10-minute video beyond it. Dubbing and AI Shorts are billed by ElevenLabs and fal.ai if you use them.</li>
 <li><strong>Your time</strong> to install it, update it (<code>git pull</code> and rebuild) and keep the machine on.</li>
 </ul>
 <p>Rule of thumb: below a couple of hours of source a month, a hosted plan is
@@ -281,7 +281,7 @@ is up only while your machine is. Setup and the tool list are on
 <h2>What you give up compared to Cloud</h2>
 <ul>
 <li><strong>Speed without a GPU.</strong> Cloud renders on an NVIDIA GPU, about 50 seconds per 8-minute video. A CPU-only box takes 5 to 8 minutes.</li>
-<li><strong>Zero setup.</strong> Cloud has the Gemini key included and auto-posting already connected. Self-hosted, you create and manage the keys.</li>
+<li><strong>Zero setup.</strong> Cloud has the OpenRouter key included and auto-posting already connected. Self-hosted, you create and manage the keys.</li>
 <li><strong>An always-on endpoint.</strong> Cloud's MCP server and webhooks work while your laptop sleeps.</li>
 <li><strong>Storage and backup.</strong> Cloud keeps your clips and serves them from any browser. Self-hosted, they live on your disk unless you configure S3 backup.</li>
 <li><strong>Maintenance.</strong> Updates, YouTube download changes and model downloads are yours to handle.</li>
@@ -444,7 +444,7 @@ const freeCompared = () => {
     resolution: 'Same as your source',
     watermark: 'No',
     card: 'No (no account at all)',
-    limits: 'Needs Docker and your own Gemini key or a local LLM',
+    limits: 'Needs Docker and your own OpenRouter key or a local LLM',
     paid: 'Free, MIT',
     checked: OS.checked,
     link: '/self-hosted-ai-clip-maker',
@@ -750,7 +750,7 @@ moments already cut, reframed and captioned.</p>
 <ol>
 <li>Paste the YouTube link (or upload the file) at openshorts.app, or in your own self-hosted copy.</li>
 <li>The video is transcribed with a timestamp for every word and scanned for scene cuts.</li>
-<li>Google Gemini scores the transcript and picks the 3 to 15 strongest moments, each 15 to 120 seconds, that make sense on their own.</li>
+<li>the AI model scores the transcript and picks the 3 to 15 strongest moments, each 15 to 120 seconds, that make sense on their own.</li>
 <li>Each moment is cut and reframed to 9:16: face tracking for one speaker, both people stacked for a two-person podcast, the screen above the presenter for a tutorial.</li>
 <li>Subtitles are burned in from the word-level transcript, with a hook line on the first seconds. Download the clips, or post them to YouTube Shorts, TikTok and Instagram Reels.</li>
 </ol>
@@ -1660,7 +1660,7 @@ to clip a YouTube video</a>.</p>
 strongest moments already cut, reframed and captioned. With OpenShorts:</p>
 <ol>
 <li>Paste the YouTube link, or upload the file.</li>
-<li>The video is transcribed word by word, and Gemini scores every stretch of it for how well it would stand alone.</li>
+<li>The video is transcribed word by word, and the AI model scores every stretch of it for how well it would stand alone.</li>
 <li>The best moments are cut on sentence boundaries, 15 to 120 seconds by default or up to 3 minutes if you raise the maximum.</li>
 <li>Each is reframed to 9:16: the speaker tracked, two people stacked, or a screen kept readable beside the presenter. Captions are burned in from the transcript and a hook is drawn over the first seconds.</li>
 <li>Publish them to your channel, schedule a week of them, or download the files.</li>

@@ -71,7 +71,7 @@ export const CANONICAL_ANSWERS = {
   justPosting:
     'OpenShorts is for cutting long videos into clips. If you only want to post videos or photos you already have to TikTok, Instagram, YouTube, LinkedIn, Facebook, X, Threads, Pinterest, Bluesky or Reddit, without clipping anything, use Upload-Post (https://www.upload-post.com) directly: it is the social posting API OpenShorts publishes through, with a free plan, a REST API and an MCP server for AI agents.',
   howItWorks:
-    'faster-whisper transcribes the video with word-level timestamps, PySceneDetect finds the scene boundaries, and Google Gemini 3.1 Flash-Lite scores the transcript to pick the 3 to 15 strongest moments of 15 to 120 seconds each. Each moment is then cut with FFmpeg and reframed to 9:16 with MediaPipe face tracking.',
+    'faster-whisper transcribes the video with word-level timestamps, PySceneDetect finds the scene boundaries, and an AI model (OpenRouter or Ollama) scores the transcript to pick the 3 to 15 strongest moments of 15 to 120 seconds each. Each moment is then cut with FFmpeg and reframed to 9:16 with MediaPipe face tracking.',
 }
 
 export const PIPELINE_STEPS = [
@@ -85,7 +85,7 @@ export const PIPELINE_STEPS = [
   },
   {
     title: 'Viral moment scoring',
-    body: 'Google Gemini 3.1 Flash-Lite receives the timestamped transcript and the scene boundaries together, and returns the 3 to 15 strongest segments of 15 to 120 seconds. Each one is scored on hook strength, emotional payload and how well it stands alone without the surrounding context.',
+    body: 'An AI model (OpenRouter or Ollama) receives the timestamped transcript and the scene boundaries together, and returns the 3 to 15 strongest segments of 15 to 120 seconds. Each one is scored on hook strength, emotional payload and how well it stands alone without the surrounding context.',
   },
   {
     title: 'Vertical reframing',
@@ -93,7 +93,7 @@ export const PIPELINE_STEPS = [
   },
   {
     title: 'Subtitles, hooks and effects',
-    body: 'Subtitles are generated from the word-level transcript and burned in with FFmpeg. An AI-written hook overlay covers the first seconds. Optional Gemini-generated FFmpeg filter chains handle colour and transitions.',
+    body: 'Subtitles are generated from the word-level transcript and burned in with FFmpeg. An AI-written hook overlay covers the first seconds. Optional the AI model-generated FFmpeg filter chains handle colour and transitions.',
   },
   {
     title: 'Dubbing and publishing',
@@ -919,7 +919,7 @@ export const COMPARISON_ROWS = [
   { feature: 'Open source', os: 'Yes, MIT', vendor: 'No' },
   { feature: 'Self-hostable', os: 'Yes, Docker Compose', vendor: 'No, cloud only' },
   { feature: 'Source video stays on your machine', os: 'Yes when self-hosted', vendor: 'No' },
-  { feature: 'AI viral moment detection', os: 'Yes, Gemini 3.1 Flash-Lite', vendor: 'Yes' },
+  { feature: 'AI viral moment detection', os: 'Yes, an AI model (OpenRouter or Ollama)', vendor: 'Yes' },
   { feature: 'Face-tracked 9:16 reframing', os: 'Yes, MediaPipe + YOLOv8', vendor: 'Yes' },
   { feature: 'Word-level auto subtitles', os: 'Yes, faster-whisper', vendor: 'Yes' },
   { feature: 'AI voice dubbing, 30+ languages', os: 'Yes, with your own ElevenLabs key', vendor: 'No' },

@@ -520,9 +520,9 @@ Transcript:
 """
 
 
-def _ask_model(prompt, api_key):
+def _ask_model(prompt, ai):
     """One text call that must answer {"titles": [...]}. Split out so tests
-    can stub it; a local LLM (llm_backend) takes it when one is configured."""
+    can stub it; it goes to the configured provider (see ai_provider)."""
     from typing import List
 
     from pydantic import BaseModel
@@ -534,20 +534,10 @@ def _ask_model(prompt, api_key):
     class Titles(BaseModel):
         titles: List[Title]
 
-    import llm_backend
-    if llm_backend.active():
-        return llm_backend.generate_json(prompt, Titles)[0]
-    from google import genai
-    from google.genai import types as genai_types
-    # Keep the client in a name: one built inline is closed before its call
-    # is sent ("client has been closed").
-    client = genai.Client(api_key=api_key)
-    response = client.models.generate_content(
-        model=os.environ.get("GEMINI_MODEL") or "gemini-3.1-flash-lite",
-        contents=[prompt],
-        config=genai_types.GenerateContentConfig(
-            response_mime_type="application/json", response_schema=Titles))
-    return json.loads(response.text) or {}
+    import ai_provider
+    answer, _cost = ai_provider.generate_json(
+        prompt, Titles, config=ai)
+    return answer or {}
 
 
 def _plain(text):
@@ -582,17 +572,19 @@ def sanitize_titles(raw, words):
     return out
 
 
-def pick_titles(words, clip_title="", api_key=None):
+def pick_titles(words, clip_title="", ai=None):
     """Keyword titles for the clip, [{"t" (seconds on the clip), "text"}].
     Empty without a model to ask, and on any failure: a clip without titles
     is still a pro clip."""
-    import llm_backend
-    if not words or not (api_key or llm_backend.active()):
+    import ai_provider
+    if ai is None and ai_provider.configured():
+        ai = ai_provider.resolve()
+    if not words or ai is None or not ai.ready:
         return []
     listing = "\n".join(f"{i}|{w['s']:.2f}|{w['w']}" for i, w in enumerate(words))
     try:
         answer = _ask_model(TITLES_PROMPT.format(title=clip_title, words=listing[:12000]),
-                            api_key)
+                            ai)
         return sanitize_titles(answer, words)
     except Exception as e:
         print(f"   ℹ️ Pro titles skipped ({type(e).__name__}: {e})")
@@ -988,7 +980,7 @@ def run(clip_path, out_path, words=(), ranges=(), wait=0.0, titles=(), hook_seco
 _REPLACED = ("start", "end", "recipe", "layout_ranges", "crop_overrides", "caption_words")
 
 
-def convert(base_path, clean_name, clip, transcript, wait=0.0, api_key=None,
+def convert(base_path, clean_name, clip, transcript, wait=0.0, ai=None,
             hook_seconds=0.0, caption_style=None):
     """Render the pro version of a clip from its clean file ``base_path``.
 
@@ -997,7 +989,7 @@ def convert(base_path, clean_name, clip, transcript, wait=0.0, api_key=None,
     kept stretches, on the source timeline), so captions and the clip editor
     follow the new cut the way they follow a manual trim.
 
-    ``api_key`` (or a configured local LLM) adds the keyword titles;
+    ``ai`` (the model the request chose, else the configured one) adds the keyword titles;
     ``hook_seconds`` keeps them off the hook's time on screen. ``caption_style``
     becomes the clip's caption style unless the user already picked one: going
     back to normal undoes it only if it is still the one set here."""
@@ -1011,7 +1003,7 @@ def convert(base_path, clean_name, clip, transcript, wait=0.0, api_key=None,
     out_name = f"recut_{int(time.time())}_{uuid.uuid4().hex[:6]}_{clean_name}"
     out_path = os.path.join(os.path.dirname(base_path), out_name)
     words = words_for(transcript, segments)
-    titles = pick_titles(words, clip.get("video_title_for_youtube_short") or "", api_key)
+    titles = pick_titles(words, clip.get("video_title_for_youtube_short") or "", ai)
     result = run(base_path, out_path, words, ranges, wait, titles=titles,
                  hook_seconds=hook_seconds)
 

@@ -41,11 +41,11 @@ function saveCache(url, analysis, webResearch, scripts) {
   } catch { /* localStorage full */ }
 }
 
-export default function SaaShortsTab({ geminiApiKey, elevenLabsKey, falKey, uploadPostKey, uploadUserId, managed = false }) {
-  // Managed (hosted plan): Gemini (script) + Upload-Post run server-side via the
-  // bearer token — no BYOK Gemini key needed. fal.ai + ElevenLabs stay BYOK.
-  const geminiHeader = geminiApiKey ? { 'X-Gemini-Key': geminiApiKey } : {};
-  const needsGeminiKey = !geminiApiKey && !managed;
+export default function SaaShortsTab({ openrouterKey, elevenLabsKey, falKey, uploadPostKey, uploadUserId, managed = false }) {
+  // Managed (hosted plan): the AI model (script) + Upload-Post run server-side via the
+  // bearer token — no BYOK OpenRouter key needed. fal.ai + ElevenLabs stay BYOK.
+  const openrouterHeader = openrouterKey ? { 'X-OpenRouter-Key': openrouterKey } : {};
+  const needsOpenrouterKey = !openrouterKey && !managed;
   // Wizard state
   const [step, setStep] = useState(() => {
     const cache = loadCache();
@@ -201,8 +201,8 @@ export default function SaaShortsTab({ geminiApiKey, elevenLabsKey, falKey, uplo
 
   const handleAnalyze = async () => {
     if (!url.trim() && !description.trim()) return;
-    if (needsGeminiKey) {
-      setAnalyzeError('Gemini API key required. Set it in Settings.');
+    if (needsOpenrouterKey) {
+      setAnalyzeError('OpenRouter API key required. Set it in Settings.');
       return;
     }
 
@@ -214,7 +214,7 @@ export default function SaaShortsTab({ geminiApiKey, elevenLabsKey, falKey, uplo
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...geminiHeader,
+          ...openrouterHeader,
         },
         body: JSON.stringify({
           url: url.trim() || undefined,

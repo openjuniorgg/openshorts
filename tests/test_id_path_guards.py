@@ -54,9 +54,11 @@ def cloud(tmp_path, monkeypatch):
         return _User(auth.split()[-1]) if auth else None
     monkeypatch.setattr(app_module, "_user_from_request", fake_user)
 
+    import ai_provider
+
     async def fake_gemini(request):
-        return "test-key"
-    monkeypatch.setattr(app_module, "resolve_gemini", fake_gemini)
+        return ai_provider.Settings(provider="openrouter", model="m", api_key="test-key")
+    monkeypatch.setattr(app_module, "resolve_ai", fake_gemini)
 
     async def no_project(job_id):
         return None, None

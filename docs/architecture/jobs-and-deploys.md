@@ -157,7 +157,7 @@ Speed at equal quality:
 
 Tried and dropped: `scale_cuda`/`scale_npp` for the analysis frames (their
 pixels differ from swscale's, so the detectors would see other frames); yt-dlp chunking/concurrent fragments (no
-gain). Method for such changes: record Gemini decisions once and replay them,
+gain). Method for such changes: record the AI model decisions once and replay them,
 run old and new code side by side, compare clips by decoded-frame MD5 / SSIM.
 
 ## Parakeet writes some English in Cyrillic
@@ -172,7 +172,7 @@ parakeet text.
 ## Failures the user should never see (`app.run_job_wrapper`)
 
 - **Auto-retry**: a failed job whose error text is transient (CUDA/OOM, NVENC
-  "Generic error in an external library", cublas, Gemini 5xx, "No clips could be
+  "Generic error in an external library", cublas, the AI model 5xx, "No clips could be
   rendered") is re-queued once after `AUTO_RETRY_DELAY_SECONDS` (30), keeping its
   reservation and transcript checkpoint (`AUTO_RETRY_LIMIT`=1). Content failures
   (no audio, private video, no clips found, policy block) are final. Inside a
@@ -450,7 +450,7 @@ coordinates them:
   took). If the live set cannot be read the pass is skipped. Every manifest
   write is atomic, since a half-written manifest reads as no manifest.
 - `main.py` leaves `.transcript_checkpoint.json` in the job dir so a re-run job
-  skips the paid transcription (download and Gemini repeat).
+  skips the paid transcription (download and the AI model repeat).
 
 Every deploy is a full build plus a handover, so batch small commits (tests,
 docs) with the next real change.

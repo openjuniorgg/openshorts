@@ -169,7 +169,8 @@ def test_transcript_endpoint_caches_and_maps_errors(monkeypatch):
 
 
 def test_metadata_endpoint_validates_input(monkeypatch):
-    monkeypatch.setattr(ft, "_gemini_key", lambda: "k")
+    import ai_provider
+    monkeypatch.setattr(ft, "_ai", lambda: ai_provider.Settings(provider="openrouter", model="m", api_key="k"))
     c = _client()
     assert c.post("/api/tools/youtube-metadata", json={"mode": "x", "topic": "a" * 40}).status_code == 400
     assert c.post("/api/tools/youtube-metadata", json={"mode": "tags", "topic": "short"}).status_code == 400

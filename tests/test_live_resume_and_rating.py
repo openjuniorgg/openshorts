@@ -116,8 +116,8 @@ def test_dashboard_key_reaches_automatic_clips_but_not_the_clip_list(tmp_path):
 
     monitor = LiveMonitor(channels=["gaules"], on_clip_ready=on_clip,
                           output_dir=str(tmp_path), mock_extraction=True)
-    monitor.gemini_api_key = "KEY-FROM-DASHBOARD"
+    monitor.ai_api_key = "KEY-FROM-DASHBOARD"
     state = monitor._channels["twitch_gaules"]
     monitor._handle_viral_spike(state, "stream_audio_shout", now=1000.0)
-    assert received.get("gemini_api_key") == "KEY-FROM-DASHBOARD"
-    assert monitor.captured_clips and all("gemini_api_key" not in c for c in monitor.captured_clips)
+    assert received.get("ai_api_key") == "KEY-FROM-DASHBOARD"
+    assert monitor.captured_clips and all("ai_api_key" not in c for c in monitor.captured_clips)

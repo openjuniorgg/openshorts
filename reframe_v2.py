@@ -746,7 +746,7 @@ def render(input_video, final_output_video, aspect_ratio, content_ranges=None,
     # stacking the two speakers would crop it away entirely.
     # A screen with a webcam composited into a corner gets its own layout, and
     # the question "is there an inset" is settled geometrically rather than by
-    # asking Gemini: offered as a fourth choice it answered "screencast" on all
+    # asking the AI model: offered as a fourth choice it answered "screencast" on all
     # five clips that had one, while camera_inset.detect finds all five with no
     # false positives. The box is fixed for the whole video, so it is found once.
     should_check_inset = (

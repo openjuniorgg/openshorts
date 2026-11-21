@@ -14,7 +14,7 @@ app_module = pytest.importorskip("app")
 def _client():
     transport = httpx.ASGITransport(app=app_module.app)
     return httpx.AsyncClient(transport=transport, base_url="http://testserver",
-                             headers={"X-Gemini-Key": "test-key"})
+                             headers={"X-OpenRouter-Key": "test-key"})
 
 
 def _mcp(tool, arguments):

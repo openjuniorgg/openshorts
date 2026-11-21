@@ -22,7 +22,7 @@ import Modal from './ui/Modal';
 //   MIT repo, whose headline is literally "no watermarks, no limits".
 // - Risk reversal: "cancel anytime" on the CTA.
 //
-// Deliberately NOT sold here: GPU rendering and the included Gemini key. Both
+// Deliberately NOT sold here: GPU rendering and the included OpenRouter key. Both
 // are real and both are why the cloud beats self-hosting, but the free plan
 // already gets them (the pricing page says "Same GPU rendering" on the free
 // tier) — so they belong on the landing/pricing surface facing repo visitors,

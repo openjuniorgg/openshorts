@@ -2,7 +2,7 @@
 
 The live monitor transcribes short audio chunks with the clip pipeline's own
 ASR (transcribe_backends). This module reads those chunks and reports which
-keyword categories were said. It never rates a moment: Gemini does that, later,
+keyword categories were said. It never rates a moment: the AI model does that, later,
 in the clip job.
 """
 from __future__ import annotations

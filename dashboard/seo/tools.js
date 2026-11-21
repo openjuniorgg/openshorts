@@ -103,7 +103,7 @@ captions a video already has on YouTube, either the ones the creator uploaded or
 YouTube's automatic ones. It does not run speech recognition itself, so a video
 with no captions at all gets an honest "no captions" instead of a guess.</p>
 <p><a href="/youtube-tag-generator">The tag, title and description generator</a>
-writes from a short brief you type, using Google Gemini. It follows the limits
+writes from a short brief you type, using the AI model. It follows the limits
 YouTube documents: titles up to 100 characters, descriptions up to 5,000, tags up
 to 500 characters in total.</p>
 <p><a href="/video-aspect-ratio-converter">The 9:16 converter</a> works on your
@@ -398,7 +398,7 @@ notes and a description.</li>
 <li><strong>Translation.</strong> Download the SRT, translate it, and you have
 subtitles in another language that keep the original timing.</li>
 <li><strong>Feeding an AI model.</strong> Paste the transcript into ChatGPT,
-Claude or Gemini to summarise it, ask questions about it or draft chapters. Keep
+Claude or the AI model to summarise it, ask questions about it or draft chapters. Keep
 the timestamps so the answer can point to the moment it comes from. Our
 <a href="/youtube-tag-generator">title, description and tag generator</a> works
 from a short brief, and a few lines of the transcript make a good one.</li>
@@ -586,7 +586,7 @@ the time it was said.</li>
 translator, or read along slowly with a creator who speaks the language you are
 learning.</li>
 <li><strong>Feeding an AI model.</strong> Paste a few transcripts into ChatGPT,
-Claude or Gemini and ask what the openings have in common, or for a summary.</li>
+Claude or the AI model and ask what the openings have in common, or for a summary.</li>
 </ul>
 
 <h2>When there is no transcript</h2>
@@ -716,7 +716,7 @@ done"</em> with the keyword <em>procrastination</em>.</p>
 ${faqBlock([
   {
     q: 'Is this YouTube tag generator free?',
-    a: 'Yes, with no account. Each click is one call to Google Gemini on our side, so it allows 12 generations per 10 minutes and 50 a day from the same network.',
+    a: 'Yes, with no account. Each click is one call to the AI model on our side, so it allows 12 generations per 10 minutes and 50 a day from the same network.',
   },
   {
     q: 'Do YouTube tags still help SEO?',
@@ -728,7 +728,7 @@ ${faqBlock([
   },
   {
     q: 'Which AI writes the titles and descriptions?',
-    a: 'Google Gemini, the same model family OpenShorts uses to pick clips and write titles in its YouTube Studio.',
+    a: 'the AI model, the same model family OpenShorts uses to pick clips and write titles in its YouTube Studio.',
   },
   {
     q: 'Does it work in other languages?',
@@ -747,7 +747,7 @@ ${sources([
     { q: 'Is this YouTube tag generator free?', a: 'Yes, with no account. It allows 12 generations per 10 minutes and 50 a day from the same network.' },
     { q: 'Do YouTube tags still help SEO?', a: 'A little. YouTube says tags play a minimal role in discovery and are most useful for commonly misspelled topics.' },
     { q: 'How long should a YouTube title be?', a: 'YouTube allows 100 characters. The generator aims for about 60 and puts the main point first.' },
-    { q: 'Which AI writes the titles and descriptions?', a: 'Google Gemini.' },
+    { q: 'Which AI writes the titles and descriptions?', a: 'the AI model.' },
   ],
   extraNodes: [
     webApp('/youtube-tag-generator', 'YouTube tag, title and description generator',

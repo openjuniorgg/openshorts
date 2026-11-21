@@ -60,7 +60,7 @@ function formatDuration(clip) {
     return `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`;
 }
 
-export default function ResultCard({ clip, index, jobId, durable, uploadPostKey, uploadUserId, geminiApiKey, elevenLabsKey, isManaged, onPlay, onPause, onBulkSubtitle, clipCount = 1, bulkProgress, initialState = null, onStateChange, connectedPlatforms = null, onConnectSocials, onEditClip = null, onReframeClip = null, onModeChanged = null, onUpgrade = null }) {
+export default function ResultCard({ clip, index, jobId, durable, uploadPostKey, uploadUserId, openrouterKey, elevenLabsKey, isManaged, onPlay, onPause, onBulkSubtitle, clipCount = 1, bulkProgress, initialState = null, onStateChange, connectedPlatforms = null, onConnectSocials, onEditClip = null, onReframeClip = null, onModeChanged = null, onUpgrade = null, aiCostShare = 0 }) {
     const [showModal, setShowModal] = useState(false);
     // The "why" line is clamped to two lines so cards in a row stay level;
     // when it overflows, a hover (desktop) or tap (touch) shows the whole
@@ -351,21 +351,21 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
         setIsEditing(true);
         setEditError(null);
         try {
-            const apiKey = geminiApiKey || localStorage.getItem('gemini_key');
+            const apiKey = openrouterKey || localStorage.getItem('openrouter_key');
 
-            // Managed (paid) users get the Gemini key resolved server-side;
+            // Managed (paid) users get the OpenRouter key resolved server-side;
             // only BYOK/self-host needs a local key.
             if (!apiKey && !isManaged) {
-                throw new Error("Gemini API Key is missing. Please set it in Settings.");
+                throw new Error("OpenRouter API Key is missing. Please set it in Settings.");
             }
-            const geminiHeaders = apiKey ? { 'X-Gemini-Key': apiKey } : {};
+            const openrouterHeaders = apiKey ? { 'X-OpenRouter-Key': apiKey } : {};
 
             // Try Remotion effects endpoint first
             const effectsRes = hasServerBurns ? null : await apiFetch('/api/effects/generate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    ...geminiHeaders
+                    ...openrouterHeaders
                 },
                 body: JSON.stringify({
                     job_id: jobId,
@@ -397,7 +397,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    ...geminiHeaders
+                    ...openrouterHeaders
                 },
                 body: JSON.stringify({
                     job_id: jobId,
@@ -909,6 +909,14 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                     <h3 className="text-base font-medium text-ink leading-tight line-clamp-2 mb-2 break-words" title={clip.video_title_for_youtube_short}>
                         {clip.video_title_for_youtube_short || "Viral Clip Generated"}
                     </h3>
+                    {clip.ai_cost && (
+                        <p className="readout text-xs text-ink2 mb-2"
+                           title={`This clip's own model calls: $${Number(clip.ai_cost.total_cost || 0).toFixed(4)} over ${clip.ai_cost.calls || 0} calls. Plus its share of the video's analysis: $${aiCostShare.toFixed(4)}.`}>
+                            {clip.ai_cost.local
+                                ? `Local model · ${clip.ai_cost.calls || 0} calls`
+                                : `AI cost · $${(Number(clip.ai_cost.total_cost || 0) + aiCostShare).toFixed(4)}`}
+                        </p>
+                    )}
                     {/* The score alone says how much, not why. One line from
                         the selection pass on what this moment has going for it. */}
                     {clip.why && (

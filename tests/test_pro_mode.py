@@ -1,3 +1,5 @@
+import ai_provider
+READY = ai_provider.Settings(provider="openrouter", model="m", api_key="k")
 """pro_mode.py: what gets cut, how the shots are planned, how the pro file's
 recipe maps back to the source, and the host-wide render slots.
 
@@ -21,7 +23,7 @@ def no_model(monkeypatch):
     def refuse(prompt, api_key):
         raise AssertionError("a test reached the model")
     monkeypatch.setattr(pro_mode, "_ask_model", refuse)
-    monkeypatch.delenv("LLM_BASE_URL", raising=False)
+    monkeypatch.delenv("AI_PROVIDER", raising=False)
 
 
 def _words(*spans):
@@ -280,22 +282,22 @@ class TestTitles:
             {"t": 9.0, "text": "MINDSET"}]
 
     def test_no_key_no_titles_and_no_call(self):
-        assert pro_mode.pick_titles(WORDS, "a title", api_key=None) == []
+        assert pro_mode.pick_titles(WORDS, "a title", ai=None) == []
 
     def test_a_model_failure_is_a_clip_without_titles(self, monkeypatch):
-        def broken(prompt, api_key):
+        def broken(prompt, ai):
             raise RuntimeError("quota")
         monkeypatch.setattr(pro_mode, "_ask_model", broken)
-        assert pro_mode.pick_titles(WORDS, "a title", api_key="k") == []
+        assert pro_mode.pick_titles(WORDS, "a title", ai=READY) == []
 
     def test_the_model_sees_the_words_with_their_index(self, monkeypatch):
         seen = {}
 
-        def answer(prompt, api_key):
+        def answer(prompt, ai):
             seen["prompt"] = prompt
             return {"titles": [{"word_index": 4, "text": "MINDSET"}]}
         monkeypatch.setattr(pro_mode, "_ask_model", answer)
-        assert pro_mode.pick_titles(WORDS, "My clip", api_key="k") == [
+        assert pro_mode.pick_titles(WORDS, "My clip", ai=READY) == [
             {"t": 9.0, "text": "MINDSET"}]
         assert "4|9.00|mindset" in seen["prompt"] and "My clip" in seen["prompt"]
 
@@ -350,7 +352,7 @@ class TestConvertExtras:
             return {"keep": [[0.0, 30.0]], "duration": 30.0, "shots": 1, "framed": 1,
                     "titles": [t["text"] for t in kw.get("titles") or []]}
         monkeypatch.setattr(pro_mode, "run", fake_run)
-        monkeypatch.setattr(pro_mode, "_ask_model", lambda prompt, key: {
+        monkeypatch.setattr(pro_mode, "_ask_model", lambda prompt, ai: {
             "titles": [{"word_index": 1, "text": "WORLD"}]})
         return calls
 
@@ -362,7 +364,7 @@ class TestConvertExtras:
     def test_titles_and_the_hook_time_reach_the_render(self, tmp_path, rendered):
         base, clip = self._clip(tmp_path)
         _name, updates = pro_mode.convert(base, "t_clip_1.mp4", clip, TRANSCRIPT,
-                                          api_key="k", hook_seconds=5.0)
+                                          ai=READY, hook_seconds=5.0)
         assert rendered[0]["titles"] == [{"t": 10.0, "text": "WORLD"}]
         assert rendered[0]["hook_seconds"] == 5.0
         assert updates["pro_titles"] == ["WORLD"]

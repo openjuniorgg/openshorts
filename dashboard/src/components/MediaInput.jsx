@@ -924,7 +924,7 @@ export default function MediaInput({ onProcess, isProcessing, liveState, onLiveC
                             </p>
                             <ol className="list-decimal pl-5 space-y-1 text-ink leading-relaxed">
                                 <li>Records the stretch around the spike straight from the live's HLS stream, starting 15 seconds before it was detected and running up to 120 seconds, without recording the whole stream.</li>
-                                <li>Sends it through the same AI pipeline as the Clip Generator (Whisper, Gemini viral scoring, 9:16 vertical reframing with the streamer on top and gameplay below, captions).</li>
+                                <li>Sends it through the same AI pipeline as the Clip Generator (Whisper, AI viral scoring, 9:16 vertical reframing with the streamer on top and gameplay below, captions).</li>
                                 <li>Each finished clip shows on the right with its viral score, the same way the Clip Generator shows its clips.</li>
                             </ol>
                         </div>

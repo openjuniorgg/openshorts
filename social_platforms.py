@@ -28,7 +28,7 @@ LABELS = {
     "bluesky": "Bluesky",
 }
 
-# YouTube refuses a title over 100 characters; the Gemini title is not bounded.
+# YouTube refuses a title over 100 characters; the AI model title is not bounded.
 YOUTUBE_TITLE_MAX = 100
 
 

@@ -67,7 +67,7 @@ it by **minting an ordinary `osk_` key** named after the client and returning it
 as the access token. No new auth path: the key shows up in Account → API keys
 and revoking it disconnects the app. The key never expires, but a refresh token
 (`osr_`, table `oauth_refresh_tokens`, hashed) comes with it for clients that
-want one (Gemini connected apps require "persistent linking"): `grant_type=
+want one (the AI model connected apps require "persistent linking"): `grant_type=
 refresh_token` swaps the key's secret in place and returns the same refresh
 token, and a revoked key refuses it. `POST /oauth/revoke` (RFC 7009, always 200)
 revokes the OAuth key behind an access or refresh token; hand-made keys are

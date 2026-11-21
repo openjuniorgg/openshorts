@@ -23,7 +23,7 @@ def test_job_options_keep_settings_and_drop_credentials():
     base = {"AUTO_LAYOUT": "1", "FFMPEG_THREADS": "2"}
     job = {"AUTO_LAYOUT": "1", "FFMPEG_THREADS": "2",           # same as the host
            "WATERMARK": "1", "CLIP_TARGET_MAX": "3", "MAX_SOURCE_MINUTES": "20",
-           "GEMINI_API_KEY": "k", "PROXY_URL": "http://u:p@h", "STATIC_PROXY_URLS": "x",
+           "OPENROUTER_API_KEY": "k", "PROXY_URL": "http://u:p@h", "STATIC_PROXY_URLS": "x",
            "YOUTUBE_COOKIES": "c", "R2_SECRET_ACCESS_KEY": "s", "DATABASE_URL": "d",
            "SOURCE_START_SECONDS": "90", "NVENC_SLOTS": "4", "PATH": "/x",
            "LD_PRELOAD": "/evil.so", "lower": "x", "BAD NAME": "x"}
@@ -329,16 +329,16 @@ def test_worker_accepts_only_the_jobs_own_source_paths():
 
 def test_worker_env_never_takes_code_paths_or_credentials(monkeypatch):
     worker = pytest.importorskip("worker")
-    monkeypatch.setenv("GEMINI_API_KEY", "own")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "own")
     monkeypatch.setenv("WORKER_TOKEN", "t")
     env = worker.job_env({"WATERMARK": "1", "PATH": "/evil", "LD_PRELOAD": "x",
-                          "PYTHONPATH": "/evil", "GEMINI_API_KEY": "theirs",
+                          "PYTHONPATH": "/evil", "OPENROUTER_API_KEY": "theirs",
                           "PROXY_URL": "p", "WORKER_API_URL": "http://evil",
                           "GOOGLE_GEMINI_BASE_URL": "http://evil", "HF_ENDPOINT": "http://evil",
                           "SSL_CERT_FILE": "/evil", "TMPDIR": "/evil"})
     for name in ("GOOGLE_GEMINI_BASE_URL", "HF_ENDPOINT", "SSL_CERT_FILE"):
         assert env.get(name) == os.environ.get(name)
-    assert env["WATERMARK"] == "1" and env["GEMINI_API_KEY"] == "own"
+    assert env["WATERMARK"] == "1" and env["OPENROUTER_API_KEY"] == "own"
     assert env.get("PATH") == os.environ.get("PATH")
     assert "LD_PRELOAD" not in env and "PROXY_URL" not in env and "WORKER_TOKEN" not in env
 
@@ -368,7 +368,7 @@ def api(tmp_path, monkeypatch):
                         ("_remote_breaker", {"recent": [], "until": 0.0}),
                         ("REMOTE_LEASE_SECONDS", 180), ("AUTO_RETRY_DELAY_SECONDS", 0)):
         monkeypatch.setattr(m, name, value)
-    monkeypatch.setenv("GEMINI_API_KEY", "server-key")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "server-key")
 
     async def nothing(*a, **k):
         return None
@@ -388,7 +388,7 @@ def _queued(m, priority=2, key="server-key", cmd=None, enqueue=True):
     with open(os.path.join(d, m._RESUME_FILE), "w") as f:
         json.dump({"cmd": cmd, "priority": priority, "attempts": 0}, f)
     m.jobs[job_id] = {"status": "queued", "logs": [], "cmd": cmd, "output_dir": d,
-                      "env": {"GEMINI_API_KEY": key, "WATERMARK": "1", "PROXY_URL": "p"}}
+                      "env": {"OPENROUTER_API_KEY": key, "WATERMARK": "1", "PROXY_URL": "p"}}
     if enqueue:
         m.job_queue.put_nowait((priority, time.time(), job_id))
     return job_id, d
@@ -936,7 +936,7 @@ print("TRANSCRIPT %s" % (json.load(open(ck))["transcript"]["segments"][0]["text"
                          if os.path.exists(ck) else None), flush=True)
 print("SEEN watermark=%s proxy=%s key=%s" % (
     os.environ.get("WATERMARK"), os.environ.get("PROXY_URL"),
-    os.environ.get("GEMINI_API_KEY")), flush=True)
+    os.environ.get("OPENROUTER_API_KEY")), flush=True)
 '''
 
 
@@ -973,7 +973,7 @@ def test_end_to_end_with_the_real_worker(api, monkeypatch, tmp_path):
     repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     env = dict(os.environ, WORKER_API_URL=f"http://127.0.0.1:{port}", WORKER_TOKEN=TOKEN,
                WORKER_ALLOW_HTTP="1", WORKER_SLOTS="1", WORKER_POLL_SECONDS="0.2",
-               GEMINI_API_KEY="the-workers-own-key", JOB_NICE="0")
+               OPENROUTER_API_KEY="the-workers-own-key", JOB_NICE="0")
     worker = subprocess.Popen([sys.executable, os.path.join(repo, "worker.py")],
                               cwd=str(host), env=env, stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT)

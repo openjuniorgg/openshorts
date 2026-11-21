@@ -173,13 +173,13 @@ const planTable = () => `
 const THUMB_PATH = '/tools/ai-thumbnail-maker'
 
 const thumbSteps = [
-  ['Upload the video, or type the title', `Open the YouTube Studio tab in the app and drop in the video file. It is transcribed while you wait, ten frames are sampled across it, and Gemini writes ${THUMB.brainstorm} candidate titles before a second pass keeps the best ${THUMB.titles}, each paired with a 1 to 4 word thumbnail text. No video yet? Type your own title instead and go straight to the thumbnails.`],
+  ['Upload the video, or type the title', `Open the YouTube Studio tab in the app and drop in the video file. It is transcribed while you wait, ten frames are sampled across it, and the AI model writes ${THUMB.brainstorm} candidate titles before a second pass keeps the best ${THUMB.titles}, each paired with a 1 to 4 word thumbnail text. No video yet? Type your own title instead and go straight to the thumbnails.`],
   ['Pick a title and generate thumbnails', `Choose a title (or refine the list in the chat), then pick a frame of your face from the video or upload a photo, add optional instructions and a background, and generate ${THUMB.uiCounts} thumbnails at once. Each one is a different concept, cropped to 1280x720 and saved as a JPEG under 2 MB.`],
   ['Check it on a phone, then download or publish', 'The phone preview shows the thumbnail at the size most viewers will see it. Download the one you want, or carry on: the studio writes a description with chapters from the transcript and can publish the video to YouTube with that title, description and thumbnail.'],
 ]
 
 const thumbFaq = [
-  { q: 'Is this AI thumbnail maker free?', a: `Not on the hosted free plan. On OpenShorts Cloud, generating thumbnail images is reserved for paid plans, from $${STARTER.monthly.price}/month for ${STARTER.monthly.minutes} minutes, and each batch uses ${THUMB.batchMinutes} of those minutes. The free plan (your first video up to ${FIRST_VIDEO_MINUTES} minutes, then ${FREE.monthly.minutes} minutes a month, watermarked clips, no card) can analyse a video and get titles, but not images. The self-hosted edition is free under MIT and includes the studio; you bring your own Google Gemini key and Google bills the image calls.` },
+  { q: 'Is this AI thumbnail maker free?', a: `Not on the hosted free plan. On OpenShorts Cloud, generating thumbnail images is reserved for paid plans, from $${STARTER.monthly.price}/month for ${STARTER.monthly.minutes} minutes, and each batch uses ${THUMB.batchMinutes} of those minutes. The free plan (your first video up to ${FIRST_VIDEO_MINUTES} minutes, then ${FREE.monthly.minutes} minutes a month, watermarked clips, no card) can analyse a video and get titles, but not images. The self-hosted edition is free under MIT and includes the studio; you bring your own Google OpenRouter key and Google bills the image calls.` },
   { q: 'What size are the thumbnails?', a: 'Exactly 1280x720 pixels, 16:9, saved as JPEG. The file is re-compressed in steps until it is under 2 MB, which is the limit YouTube puts on a custom thumbnail.' },
   { q: 'Can it put my face on the thumbnail?', a: `Yes. After a video is analysed the studio scans sampled frames for a large, sharp face and offers up to ${THUMB.frames} of them, spread across the runtime. Pick one and it is used as the person reference. You can also upload a photo, which takes priority over the frame.` },
   { q: 'Is the text on the thumbnail spelled correctly?', a: 'With the default Crisp setting, yes: the image model leaves one side empty and the text is set afterwards in the Anton typeface with a black stroke, from the exact words you chose. With AI painted, the image model draws the text itself, which can look more integrated but can also misspell it.' },
@@ -209,13 +209,13 @@ const thumbnailMaker = () => ({
   cta: {
     label: 'YouTube Studio',
     title: 'Titles, thumbnails and a description from one video',
-    body: `Image generation is on paid plans, from $${STARTER.monthly.price}/month (${THUMB.batchMinutes} minutes a batch). The free plan gets titles, and self-hosting is free under MIT with your own Gemini key.`,
+    body: `Image generation is on paid plans, from $${STARTER.monthly.price}/month (${THUMB.batchMinutes} minutes a batch). The free plan gets titles, and self-hosting is free under MIT with your own OpenRouter key.`,
     button: 'Open the thumbnail studio',
     href: `${SITE.url}/#app?tab=thumbnails`,
   },
   tldr: [
     `OpenShorts makes YouTube thumbnails from the video they are for. It reads the transcript and a spread of frames, proposes ${THUMB.titles} titles each paired with a short thumbnail text, finds frames where your face is large and sharp, and generates ${THUMB.uiCounts} different thumbnail concepts at once, each 1280x720 and under YouTube's 2 MB limit.`,
-    `It is not a free web toy: it lives in the OpenShorts app (the YouTube Studio tab). On the hosted Cloud, thumbnail images are a paid-plan feature from $${STARTER.monthly.price}/month, ${THUMB.batchMinutes} minutes of the plan per batch. Titles and descriptions work on the free plan too, and the self-hosted edition includes everything under MIT with your own Gemini key.`,
+    `It is not a free web toy: it lives in the OpenShorts app (the YouTube Studio tab). On the hosted Cloud, thumbnail images are a paid-plan feature from $${STARTER.monthly.price}/month, ${THUMB.batchMinutes} minutes of the plan per batch. Titles and descriptions work on the free plan too, and the self-hosted edition includes everything under MIT with your own OpenRouter key.`,
   ],
   body: `
 <h2>What this AI thumbnail maker does</h2>
@@ -372,7 +372,7 @@ A free account that has run out of minutes can keep refining a session it
 already paid for, but cannot start a new one.</p>
 <p><strong>Self-hosted.</strong> The studio ships in the open source edition,
 free under MIT, with no minutes and no plan check. It needs your own Google
-Gemini key: titles and descriptions are text calls, thumbnails are image calls,
+OpenRouter key: titles and descriptions are text calls, thumbnails are image calls,
 and Google bills those to your key at its own rates. Publishing needs your own
 Upload-Post key and a connected YouTube profile.</p>
 
@@ -428,7 +428,7 @@ ${sources([
         monthly(STARTER, `${STARTER.monthly.minutes} minutes a month; thumbnail image generation included at ${THUMB.batchMinutes} minutes per batch.`),
         monthly(CREATOR, `${CREATOR.monthly.minutes} minutes a month; thumbnail image generation included at ${THUMB.batchMinutes} minutes per batch.`),
         monthly(PRO, `${PRO.monthly.minutes} minutes a month; thumbnail image generation included at ${THUMB.batchMinutes} minutes per batch.`),
-        selfHostedOffer('Free and open source; the studio runs with your own Google Gemini key, billed by Google.'),
+        selfHostedOffer('Free and open source; the studio runs with your own Google OpenRouter key, billed by Google.'),
       ]),
   ],
 })
@@ -446,9 +446,9 @@ const ugcSteps = [
 ]
 
 const ugcFaq = [
-  { q: 'How much does an AI UGC video cost?', a: `About ${UGC.lowCost} a video in Low Cost mode and about ${UGC.premium} in Premium (the in-app estimate shows up to ${UGC.premiumUi} for Premium), paid to fal.ai and ElevenLabs on your own keys. On OpenShorts Cloud the script and orchestration come out of your plan's minutes (the free plan included); plans run from $0 to $${CLOUD.highPrice}/month. Self-hosted, OpenShorts itself is free under MIT and you also bring a Gemini key.` },
-  { q: 'Is there a free AI UGC video generator?', a: `Not in the sense of free videos. On OpenShorts Cloud the research and the scripts run on the free plan, from its minutes, so you can get UGC scripts for nothing; the video itself (actor, lip-sync, voice, b-roll) is always billed by fal.ai and ElevenLabs on your own keys, about ${UGC.lowCost} a video in Low Cost mode. Paid Cloud plans start at $${STARTER.monthly.price}/month; self-hosted, OpenShorts is free under MIT and you pay only those providers and your own Gemini key.` },
-  { q: 'Do I need my own API keys?', a: 'Yes, for the video. Generation always uses your fal.ai key (actor image, talking-head video, lip-sync, b-roll) and your ElevenLabs key (voice), on Cloud and self-hosted alike, and those providers bill you directly. On Cloud the Gemini part (research and scripts) and posting run on the managed keys; self-hosted, you supply a Gemini key too.' },
+  { q: 'How much does an AI UGC video cost?', a: `About ${UGC.lowCost} a video in Low Cost mode and about ${UGC.premium} in Premium (the in-app estimate shows up to ${UGC.premiumUi} for Premium), paid to fal.ai and ElevenLabs on your own keys. On OpenShorts Cloud the script and orchestration come out of your plan's minutes (the free plan included); plans run from $0 to $${CLOUD.highPrice}/month. Self-hosted, OpenShorts itself is free under MIT and you also bring an OpenRouter key.` },
+  { q: 'Is there a free AI UGC video generator?', a: `Not in the sense of free videos. On OpenShorts Cloud the research and the scripts run on the free plan, from its minutes, so you can get UGC scripts for nothing; the video itself (actor, lip-sync, voice, b-roll) is always billed by fal.ai and ElevenLabs on your own keys, about ${UGC.lowCost} a video in Low Cost mode. Paid Cloud plans start at $${STARTER.monthly.price}/month; self-hosted, OpenShorts is free under MIT and you pay only those providers and your own OpenRouter key.` },
+  { q: 'Do I need my own API keys?', a: 'Yes, for the video. Generation always uses your fal.ai key (actor image, talking-head video, lip-sync, b-roll) and your ElevenLabs key (voice), on Cloud and self-hosted alike, and those providers bill you directly. On Cloud the AI model part (research and scripts) and posting run on the managed keys; self-hosted, you supply an OpenRouter key too.' },
   { q: 'What do I need to give it?', a: `Either the product's website URL or a written description of up to ${UGC.descriptionChars} characters, or both (the description then adds context). With a URL, the page and up to ${UGC.subpages} subpages are read and the product is researched on the web before the scripts are written.` },
   { q: 'How long are the videos?', a: 'About 20 to 25 seconds, by design. Every script follows a fixed five-part structure (hook, problem, solution, demo, call to action), which is the length and shape of a typical short-form product ad.' },
   { q: 'What format is the video?', a: 'A vertical 9:16 MP4 at 1080x1920, H.264 video with AAC audio, captions burned in. It fits TikTok, Instagram Reels and YouTube Shorts without any reframing.' },
@@ -478,8 +478,8 @@ const ugcGenerator = () => ({
     href: `${SITE.url}/#app?tab=saasshorts`,
   },
   tldr: [
-    `OpenShorts' AI Shorts turns a product URL or a short description into a vertical UGC-style ad: Gemini researches the product and writes 20 to 25 second scripts (hook, problem, solution, demo, call to action), an AI actor says it with lip-synced voice, two b-roll inserts cover the problem and the product, and the captions are burned in. Output is a 1080x1920 MP4 for TikTok, Reels and Shorts.`,
-    `The video generation runs on your own fal.ai and ElevenLabs keys: about ${UGC.lowCost} a video in Low Cost mode and about ${UGC.premium} in Premium, billed by those providers. On OpenShorts Cloud the scripts come out of your plan's minutes, the free plan included; self-hosted, OpenShorts is free under MIT and you add a Gemini key.`,
+    `OpenShorts' AI Shorts turns a product URL or a short description into a vertical UGC-style ad: the AI model researches the product and writes 20 to 25 second scripts (hook, problem, solution, demo, call to action), an AI actor says it with lip-synced voice, two b-roll inserts cover the problem and the product, and the captions are burned in. Output is a 1080x1920 MP4 for TikTok, Reels and Shorts.`,
+    `The video generation runs on your own fal.ai and ElevenLabs keys: about ${UGC.lowCost} a video in Low Cost mode and about ${UGC.premium} in Premium, billed by those providers. On OpenShorts Cloud the scripts come out of your plan's minutes, the free plan included; self-hosted, OpenShorts is free under MIT and you add an OpenRouter key.`,
   ],
   body: `
 <h2>What AI UGC is, and what this generator makes</h2>
@@ -512,7 +512,7 @@ ${stepsBlock('How to make an AI UGC video, in three steps', ugcSteps)}
 
 <h2>What you put in</h2>
 <ul>
-<li><strong>A website URL, a description, or both.</strong> With a URL, the page and up to ${UGC.subpages} subpages are read and Gemini researches the product on the web, then extracts the value proposition, the audience, the pain points and the angles worth trying. With only a description (up to ${UGC.descriptionChars} characters), the scripts are written from what you say.</li>
+<li><strong>A website URL, a description, or both.</strong> With a URL, the page and up to ${UGC.subpages} subpages are read and the AI model researches the product on the web, then extracts the value proposition, the audience, the pain points and the angles worth trying. With only a description (up to ${UGC.descriptionChars} characters), the scripts are written from what you say.</li>
 <li><strong>Language.</strong> English or Spanish, written natively in each rather than translated.</li>
 <li><strong>Actor.</strong> A woman or a man.</li>
 <li><strong>Style.</strong> UGC natural (authentic, talking to camera), educational, shock or discovery (a surprising opener), storytelling (a mini narrative arc) or before and after.</li>
@@ -567,14 +567,14 @@ b-roll, voice) is billed by fal.ai and ElevenLabs, to the keys you connect in
 Settings. That is true on OpenShorts Cloud and self-hosted alike: no plan
 includes it yet. The keys are kept in your browser and sent with each request.</p>
 <p><strong>The research, the scripts and the posting</strong> are OpenShorts. On
-Cloud they run on the managed Gemini and posting keys and each analysis run
+Cloud they run on the managed AI model access and posting keys and each analysis run
 uses 1 minute of your plan's balance, which the free plan (your first video up
 to ${FIRST_VIDEO_MINUTES} minutes, then ${FREE.monthly.minutes} minutes a month,
 watermarked clips, no card) covers too. Paid plans, from the
 <a href="${PRICING}">pricing table</a>:</p>
 ${planTable()}
 <p>Self-hosted, OpenShorts is free under MIT with no meter; you add your own
-Gemini key for the research and scripts, plus
+OpenRouter key for the research and scripts, plus
 the same fal.ai and ElevenLabs keys.</p>
 
 <h2>AI UGC or a human creator</h2>
@@ -677,7 +677,7 @@ ${sources([
           description: `Scripts and orchestration from the free minutes (first video up to ${FIRST_VIDEO_MINUTES} minutes, then ${FREE.monthly.minutes} a month; clips watermarked). Video generation billed by fal.ai and ElevenLabs on your keys.`,
         },
         monthly(STARTER, `${STARTER.monthly.minutes} minutes a month, no watermark. Video generation billed by fal.ai and ElevenLabs on your keys.`),
-        selfHostedOffer('Free and open source; bring your own Gemini, fal.ai and ElevenLabs keys.'),
+        selfHostedOffer('Free and open source; bring your own AI model, fal.ai and ElevenLabs keys.'),
       ]),
   ],
 })
@@ -700,7 +700,7 @@ const ARCADS_PATH = '/alternatives/arcads'
 const arcadsFaq = [
   { q: 'What is a cheaper alternative to Arcads?', a: `OpenShorts AI Shorts, if you would rather pay per video than per month: about ${UGC.lowCost} a video in Low Cost mode (about ${UGC.premium} in Premium), billed by fal.ai and ElevenLabs on your own keys, with no avatar quota. OpenShorts itself is free to self-host under MIT, or from $${STARTER.monthly.price}/month hosted.` },
   { q: 'How much does Arcads cost?', a: `Arcads does not publish its prices on its website (checked ${longDate(ARCADS.checked)}). Its help centre names the plans: ${ARCADS.plans}. The free trial is ${ARCADS.trial}.` },
-  { q: 'Is there a free Arcads alternative?', a: `Not for the video itself: lip-synced AI actors cost compute on every tool. With OpenShorts the scripts and product research run on the free plan, and the video is billed per piece by fal.ai and ElevenLabs on your keys, about ${UGC.lowCost} in Low Cost mode. Self-hosted, OpenShorts is free under MIT and you add a Gemini key.` },
+  { q: 'Is there a free Arcads alternative?', a: `Not for the video itself: lip-synced AI actors cost compute on every tool. With OpenShorts the scripts and product research run on the free plan, and the video is billed per piece by fal.ai and ElevenLabs on your keys, about ${UGC.lowCost} in Low Cost mode. Self-hosted, OpenShorts is free under MIT and you add an OpenRouter key.` },
   { q: 'What does OpenShorts AI Shorts make?', a: 'A 20 to 25 second vertical UGC-style ad from a product URL or description: hook, problem, solution, demo and call to action, said by a lip-synced AI actor, with two b-roll inserts and burned-in captions, as a 1080x1920 MP4. English and Spanish.' },
   { q: 'Where is Arcads better?', a: 'It is a dedicated UGC ad product with one subscription and no API keys to manage, a larger actor library, and more ad formats and workflows than a single 20-second structure. OpenShorts AI Shorts is narrower: one ad format, your own provider keys, open source code.' },
 ]

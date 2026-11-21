@@ -782,8 +782,9 @@ class LiveMonitor:
         self.audio_enabled = not mock_extraction
         self.audio_probe_loop = False
         self.game_filter = os.environ.get("LIVE_GAME_FILTER", "1") != "0"
-        # The Gemini key the dashboard sent with the start request (memory only).
-        self.gemini_api_key: Optional[str] = None
+        # The AI key and the model choice the dashboard sent with the start request (memory only).
+        self.ai_api_key: Optional[str] = None
+        self.ai_choice: Dict[str, str] = {}
         self._transcript_tasks: Dict[str, asyncio.Task] = {}
         self._chunk_procs: Dict[str, subprocess.Popen] = {}
         self._asr_used = False
@@ -964,7 +965,7 @@ class LiveMonitor:
     def _handle_viral_spike(self, state: ChannelState, reason: str, now: Optional[float] = None, **kwargs):
         """Triggers highlight extraction and invokes on_clip_ready.
 
-        Only GTA VI streams are clipped. Nothing is limited by count: Gemini's
+        Only GTA VI streams are clipped. Nothing is limited by count: the model's
         predicted_score decides which moments become clips.
         """
         trigger_time = now or time.time()
@@ -972,9 +973,10 @@ class LiveMonitor:
             logger.info(f"Not a GTA VI stream, no clip for {state.channel}: {reason}")
             return None
         state.last_clip_time = trigger_time
-        # The Gemini key only goes to the callback; it must never be stored in captured_clips
+        # The AI key only goes to the callback; it must never be stored in captured_clips
         # (the status endpoint returns that list to the browser).
-        api_key = kwargs.pop("gemini_api_key", None) or self.gemini_api_key
+        api_key = kwargs.pop("ai_api_key", None) or self.ai_api_key
+        choice = kwargs.pop("ai_choice", None) or self.ai_choice
         # "cooldown" only while this extraction is in flight; reset in `finally` below.
         state.status = "cooldown"
 
@@ -1009,7 +1011,9 @@ class LiveMonitor:
                 if self.on_clip_ready:
                     callback_meta = dict(meta)
                     if api_key:
-                        callback_meta["gemini_api_key"] = api_key
+                        callback_meta["ai_api_key"] = api_key
+                    if choice:
+                        callback_meta["ai_choice"] = dict(choice)
                     try:
                         if inspect.iscoroutinefunction(self.on_clip_ready):
                             await self.on_clip_ready(clip_path, callback_meta)
@@ -1335,7 +1339,7 @@ class LiveMonitor:
     def _on_transcript_chunk(self, cid: str, state: ChannelState, segments: List[Dict[str, Any]], t0: float):
         """Keeps the text, checks it for keywords, and sends candidates to the pipeline.
 
-        Nothing here rates the moment. A candidate starts a clip job; Gemini's
+        Nothing here rates the moment. A candidate starts a clip job; the model's
         predicted_score decides whether the clip is kept.
         """
         for seg in segments:

@@ -39,7 +39,6 @@ fonttools==4.68.0
 fsspec==2026.9.0
 future==1.0.0
 google-auth==2.62.1
-google-genai==1.75.0
 greenlet==3.5.6
 h11==0.16.0
 hf-xet==1.8.0

@@ -348,7 +348,7 @@ def detect_in_scene(video_path, start_f, end_f, samples=5):
 
     ``detect`` is the clip-wide check and insists on a corner, because nothing
     upstream of it says the frame is a screen. Here the shot check already did
-    (this runs only on scenes Gemini called "screen"), so a small face that
+    (this runs only on scenes the AI model called "screen"), so a small face that
     stays put is the presenter's camera wherever it floats: a QuickTime or Loom
     window over a document sits mid-left, not in a corner, and the screen-only
     layout shrank both into a 1080px-wide strip (Ty Myers tutorial,
