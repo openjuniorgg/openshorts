@@ -19,6 +19,7 @@ import os
 import re
 import shutil
 import subprocess
+import threading
 import time
 from typing import Any, Callable, Deque, Dict, List, Optional, Set, Tuple, Union
 from urllib.parse import parse_qs, urlparse
@@ -727,6 +728,15 @@ class ChannelState:
         return False, None
 
 
+def _release_asr_models():
+    """Drops the live transcript's ASR models. Runs on its own thread (see LiveMonitor.stop)."""
+    try:
+        from transcribe_backends import release_models
+        release_models()
+    except Exception as e:
+        logger.debug(f"release_models after live transcript failed: {e}")
+
+
 class LiveMonitor:
     """Unified ultra-optimized live stream monitoring engine.
 
@@ -1162,11 +1172,9 @@ class LiveMonitor:
         cancelled = self._cancel_tasks()
         if self._asr_used:
             # Give the GPU back: the live transcript held the ASR model while running.
-            try:
-                from transcribe_backends import release_models
-                release_models()
-            except Exception as e:
-                logger.debug(f"release_models after live transcript failed: {e}")
+            # Off the event loop: release_models() waits for any chunk still decoding,
+            # and a blocked loop would stall every request, this stop included.
+            threading.Thread(target=_release_asr_models, name="live-asr-release", daemon=True).start()
             self._asr_used = False
         for s in self._channels.values():
             s.status = "idle"

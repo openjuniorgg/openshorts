@@ -18,7 +18,7 @@ function timeOf(ts) {
   return ts ? new Date(ts * 1000).toLocaleTimeString() : '';
 }
 
-export default function LiveWorkspace({ streams, clips, logs, onStop, renderResultCard, transcribing = false }) {
+export default function LiveWorkspace({ streams, clips, logs, onStop, renderResultCard, transcribing = false, stopping = false, stopError = '' }) {
   const { ready, pending } = useMemo(() => {
     const readyItems = [];
     const pendingItems = [];
@@ -110,10 +110,14 @@ export default function LiveWorkspace({ streams, clips, logs, onStop, renderResu
         <button
           type="button"
           onClick={onStop}
-          className="btn-ghost mb-4 w-full text-xs py-2 flex items-center justify-center gap-2"
+          disabled={stopping}
+          className="btn-ghost mb-4 w-full text-xs py-2 flex items-center justify-center gap-2 disabled:opacity-60"
         >
-          <Square size={12} /> stop monitoring
+          <Square size={12} /> {stopping ? 'stopping…' : 'stop monitoring'}
         </button>
+        {stopError && (
+          <p role="alert" className="text-[11px] text-danger mb-4">{stopError}</p>
+        )}
 
         <div className="bg-paper rounded-card border border-rule overflow-hidden flex flex-col min-h-[180px]">
           <div className="px-3.5 py-2.5 border-b border-rule bg-paper2 readout flex items-center gap-2">

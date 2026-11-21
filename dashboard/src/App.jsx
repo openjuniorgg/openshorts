@@ -860,14 +860,23 @@ function App() {
   const [liveState, setLiveState] = useState({ running: false, streams: [], clips: [] });
   const [liveLogs, setLiveLogs] = useState([]);
   const liveSnapshotRef = useRef(null);
+  const [liveStopping, setLiveStopping] = useState(false);
+  const [liveStopError, setLiveStopError] = useState('');
+  // Status polls are numbered. A poll that left before the last confirmed stop can
+  // still report the old state, so it is dropped instead of flipping the view back.
+  const livePollSeqRef = useRef(0);
+  const liveStopSeqRef = useRef(0);
+  const liveStoppingRef = useRef(false);
 
   useEffect(() => {
     if (activeTab !== 'dashboard') return undefined;
     let cancelled = false;
     const tick = async () => {
+      const seq = ++livePollSeqRef.current;
       try {
         const data = await getLiveMonitorStatus();
         if (cancelled || !data || typeof data.running !== 'boolean') return;
+        if (seq <= liveStopSeqRef.current) return;
         const next = {
           running: data.running,
           streams: Array.isArray(data.streams) ? data.streams : [],
@@ -893,13 +902,24 @@ function App() {
   // Start/stop are made in MediaInput; this only flips the view at once.
   const handleLiveChange = (running) => setLiveState((prev) => ({ ...prev, running }));
 
+  // The view flips only once the server confirms the stop. When the stop fails the
+  // monitor may still be running, so the workspace stays and says so.
   const handleStopLiveFromWorkspace = async () => {
+    if (liveStoppingRef.current) return;
+    liveStoppingRef.current = true;
+    setLiveStopping(true);
+    setLiveStopError('');
     try {
       await stopLiveMonitor();
+      liveStopSeqRef.current = livePollSeqRef.current;
+      setLiveState((prev) => ({ ...prev, running: false }));
     } catch (err) {
       console.error('Failed to stop live monitor:', err);
+      setLiveStopError('Could not stop the monitor. Try again.');
+    } finally {
+      liveStoppingRef.current = false;
+      setLiveStopping(false);
     }
-    setLiveState((prev) => ({ ...prev, running: false }));
   };
 
   useEffect(() => {
@@ -2283,6 +2303,8 @@ function App() {
               transcribing={liveState.transcribing}
               logs={liveLogs}
               onStop={handleStopLiveFromWorkspace}
+              stopping={liveStopping}
+              stopError={liveStopError}
               renderResultCard={(clip, index, jobId) => (
                 <ResultCard
                   clip={clip}
