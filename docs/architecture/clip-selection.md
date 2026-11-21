@@ -34,7 +34,7 @@ words; without the second test the picker scores those words and cuts around
 them.
 
 The vision pass uploads the video, Gemini returns the same `{"shorts"}` shape
-(`gemini_worker.VisualResponse`) in the same 15-60 s band, so every later stage
+(`gemini_worker.VisualResponse`) in the same 15-120 s band, so every later stage
 is identical. `CLIP_TARGET_MIN`/`MAX` apply directly (there are no scoring
 windows). The transcript is stored as `{"language": "none", "segments": []}`, so
 the clips have no subtitles, which is correct.

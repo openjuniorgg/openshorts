@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Upload, Sparkles, Youtube, Instagram, Share2, ChevronDown, Check, Activity, LayoutDashboard, Settings, Plus, History, X, Terminal, Shield, LayoutGrid, Image, Globe, RotateCcw, Calendar, AlertTriangle, KeyRound, Bot, Users, Smartphone, ExternalLink, Copy, CheckCircle2, Mail, Loader2, Download, Menu, Lock, Rocket } from 'lucide-react';
 import KeyInput from './components/KeyInput';
 import MediaInput from './components/MediaInput';
+import LiveWorkspace from './components/LiveWorkspace';
+import { liveLogLines } from './lib/liveLogs';
 import McpConnectCard from './components/McpConnectCard';
 import ResultCard from './components/ResultCard';
 import ProcessingAnimation from './components/ProcessingAnimation';
@@ -29,7 +31,7 @@ import AutopilotTab from './components/AutopilotTab';
 import ProfileMenu from './components/ProfileMenu';
 import Modal from './components/ui/Modal';
 import { useAuth } from './contexts/AuthContext';
-import { apiFetch, apiJson, QuotaError, QUOTA_WALL_EVENT } from './lib/api';
+import { apiFetch, apiJson, QuotaError, QUOTA_WALL_EVENT, getLiveMonitorStatus, stopLiveMonitor } from './lib/api';
 import { SOCIAL_PLATFORMS } from './lib/socialPlatforms';
 import { track } from './lib/analytics';
 import { readConnectReturn, stripConnectReturn } from './lib/connectReturn';
@@ -852,6 +854,53 @@ function App() {
   const historyAvailableRef = useRef(false);
   historyAvailableRef.current = billingEnabled && isSignedIn;
   const handleResetRef = useRef(null);
+
+  // Live monitor state lives here (not in MediaInput) so it keeps updating
+  // while the workspace replaces the form.
+  const [liveState, setLiveState] = useState({ running: false, streams: [], clips: [] });
+  const [liveLogs, setLiveLogs] = useState([]);
+  const liveSnapshotRef = useRef(null);
+
+  useEffect(() => {
+    if (activeTab !== 'dashboard') return undefined;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const data = await getLiveMonitorStatus();
+        if (cancelled || !data || typeof data.running !== 'boolean') return;
+        const next = {
+          running: data.running,
+          streams: Array.isArray(data.streams) ? data.streams : [],
+          clips: Array.isArray(data.captured_clips) ? data.captured_clips : [],
+          transcribing: !!data.transcribing,
+        };
+        setLiveState(next);
+        const lines = liveLogLines(liveSnapshotRef.current, next);
+        liveSnapshotRef.current = next;
+        if (lines.length) {
+          const stamp = new Date().toLocaleTimeString();
+          setLiveLogs((prev) => [...prev, ...lines.map((l) => `${stamp}  ${l}`)].slice(-300));
+        }
+      } catch (_) {
+        // Background poll: a failed tick is simply the next one.
+      }
+    };
+    tick();
+    const timer = setInterval(tick, 3000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [activeTab]);
+
+  // Start/stop are made in MediaInput; this only flips the view at once.
+  const handleLiveChange = (running) => setLiveState((prev) => ({ ...prev, running }));
+
+  const handleStopLiveFromWorkspace = async () => {
+    try {
+      await stopLiveMonitor();
+    } catch (err) {
+      console.error('Failed to stop live monitor:', err);
+    }
+    setLiveState((prev) => ({ ...prev, running: false }));
+  };
 
   useEffect(() => {
     let interval;
@@ -2178,7 +2227,7 @@ function App() {
           )} */}
 
           {/* View: Dashboard (Idle) */}
-          {activeTab === 'dashboard' && status === 'idle' && (
+          {activeTab === 'dashboard' && status === 'idle' && !liveState.running && (
             <div className="h-full overflow-y-auto custom-scrollbar animate-fade">
               <div className="min-h-full flex flex-col items-center justify-center px-4 py-5 sm:p-6">
               {/* On a phone the hero used to fill the fold on its own and push
@@ -2209,7 +2258,12 @@ function App() {
                   )}
                 </div>
 
-                <MediaInput onProcess={handleProcess} isProcessing={status === 'processing'} />
+                <MediaInput
+                  onProcess={handleProcess}
+                  isProcessing={status === 'processing'}
+                  liveState={liveState}
+                  onLiveChange={handleLiveChange}
+                />
 
                 <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-muted text-xs sm:text-sm">
                   <span className="flex items-center gap-2"><Youtube size={16} /> YouTube</span>
@@ -2221,8 +2275,35 @@ function App() {
             </div>
           )}
 
+          {/* View: Live monitor (replaces the form while monitoring runs) */}
+          {activeTab === 'dashboard' && liveState.running && (
+            <LiveWorkspace
+              streams={liveState.streams}
+              clips={liveState.clips}
+              transcribing={liveState.transcribing}
+              logs={liveLogs}
+              onStop={handleStopLiveFromWorkspace}
+              renderResultCard={(clip, index, jobId) => (
+                <ResultCard
+                  clip={clip}
+                  index={index}
+                  jobId={jobId}
+                  clipCount={1}
+                  geminiApiKey={apiKey}
+                  elevenLabsKey={elevenLabsKey}
+                  isManaged={isManaged}
+                  uploadPostKey={uploadPostKey}
+                  uploadUserId={uploadUserId}
+                  connectedPlatforms={(userProfiles.find((p) => p.username === uploadUserId) || userProfiles[0])?.connected ?? null}
+                  onConnectSocials={isManaged ? handleConnectSocials : null}
+                  onUpgrade={isManaged ? openUpsell : null}
+                />
+              )}
+            />
+          )}
+
           {/* View: Processing / Results (Split View) */}
-          {activeTab === 'dashboard' && (status === 'processing' || status === 'complete' || status === 'error') && (
+          {activeTab === 'dashboard' && !liveState.running && (status === 'processing' || status === 'complete' || status === 'error') && (
             <div className="h-full flex flex-col md:flex-row gap-3 md:gap-4 p-3 md:p-4 overflow-y-auto md:overflow-y-hidden custom-scrollbar animate-fade">
 
               {/* Left Panel: Preview & Status */}

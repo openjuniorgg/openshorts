@@ -51,6 +51,39 @@ def parse_vod_id(url) -> Optional[str]:
     return m.group(1) if m else None
 
 
+def is_stream_source(url=None, info=None) -> bool:
+    """True when the video is a Twitch VOD or a YouTube live stream / stream VOD."""
+    if os.environ.get("IS_STREAM_SOURCE") == "1":
+        return True
+
+    if info and isinstance(info, dict):
+        if not url:
+            url = info.get("webpage_url") or info.get("original_url") or info.get("url")
+
+        extractor = str(info.get("extractor") or "").strip().lower()
+        extractor_key = str(info.get("extractor_key") or "").strip().lower()
+        if (extractor in ("twitch", "twitch:vod")
+                or extractor_key in ("twitch", "twitch:vod", "twitchvod")
+                or "twitch" in extractor
+                or "twitch" in extractor_key):
+            return True
+
+        if info.get("is_live") or info.get("was_live"):
+            return True
+        if str(info.get("live_status") or "").strip().lower() in ("is_live", "was_live", "post_live"):
+            return True
+
+    if url:
+        url_str = str(url).strip()
+        url_lower = url_str.lower()
+        if "twitch.tv" in url_lower or parse_vod_id(url_str) is not None:
+            return True
+        if "/live/" in url_lower:
+            return True
+
+    return False
+
+
 def parse_helix_duration(value) -> float:
     """Helix VOD durations look like ``3h2m1s``; seconds as a float."""
     total = 0.0

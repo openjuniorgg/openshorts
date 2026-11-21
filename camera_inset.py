@@ -18,6 +18,7 @@ corner and that a person detector fires inside it. So: locate the person, decide
 which corner they are nearest, and grow a box from that corner until it covers
 them with margin.
 """
+import math
 import os
 
 from ffmpeg_utils import blurred_backdrop
@@ -191,6 +192,51 @@ def usable(box, frame_h, min_ratio=MIN_INSET_HEIGHT, max_ratio=MAX_INSET_HEIGHT)
     return min_ratio * frame_h <= box[3] <= max_ratio * frame_h
 
 
+def person_boxes(frame):
+    """Every person in the frame as an upper-body box (x, y, w, h), in frame pixels.
+
+    main.detect_person_yolo returns only the largest person, so a webcam smaller
+    than an on-screen character was never considered. This uses the same model
+    and the same upper-body approximation (the top 40% of the person box).
+    """
+    import main as m
+
+    small, scale = m._detection_frame(frame)
+    with m.DETECT_LOCK:
+        results = m.model(small, verbose=False, classes=[0])  # class 0 is person
+    boxes = []
+    for result in results or []:
+        for det in result.boxes:
+            x1, y1, x2, y2 = [int(i * scale) for i in det.xyxy[0]]
+            w, h = x2 - x1, y2 - y1
+            if w > 0 and h > 0:
+                boxes.append((x1, y1, w, int(h * 0.4)))
+    return boxes
+
+
+def manual_box_from_env(orig_w, orig_h):
+    """The webcam box calibrated for this channel, in source pixels, or None.
+
+    WEBCAM_BOX is "x,y,w,h" as fractions of the frame, set per live job from
+    webcam_boxes.json. A calibrated box is known, so detection is skipped for it.
+    """
+    raw = os.environ.get("WEBCAM_BOX", "").strip()
+    if not raw:
+        return None
+    try:
+        fx, fy, fw, fh = (float(v) for v in raw.split(","))
+    except ValueError:
+        return None
+    if not (0 <= fx < 1 and 0 <= fy < 1 and 0 < fw <= 1 and 0 < fh <= 1):
+        return None
+    x, y = int(round(fx * orig_w)), int(round(fy * orig_h))
+    w = min(int(round(fw * orig_w)), orig_w - x)
+    h = min(int(round(fh * orig_h)), orig_h - y)
+    if w < 2 or h < 2:
+        return None
+    return (x, y, w, h)
+
+
 def detect(video_path, samples=10):
     """Median inset rectangle across sampled frames, or None.
 
@@ -199,8 +245,6 @@ def detect(video_path, samples=10):
     """
     import cv2
     import numpy as np
-    import main as m
-    import screencast_layout
 
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -211,6 +255,15 @@ def detect(video_path, samples=10):
     if total <= 0 or not frame_w:
         cap.release()
         return None
+    # A channel with a calibrated box (WEBCAM_BOX, set per live job) skips detection.
+    manual = manual_box_from_env(frame_w, frame_h)
+    if manual:
+        cap.release()
+        return manual
+
+    # The models load only when something has to be detected.
+    import main as m
+    import screencast_layout
 
     boxes = []
     try:
@@ -223,16 +276,16 @@ def detect(video_path, samples=10):
             # 1080p source the face inside it is often too few pixels for
             # BlazeFace even at full resolution, while YOLO still finds the
             # person.
-            faces = screencast_layout.detect_faces_full_res(frame)
-            if faces:
-                box = max(faces, key=lambda c: c['score'])['box']
-            else:
-                box = m.detect_person_yolo(frame)
-            if not box:
-                continue
-            if not is_cornered(box, frame_w, frame_h):
-                continue
-            boxes.append(inset_box(box, frame_w, frame_h, face=bool(faces)))
+            # Every face and every person is a candidate, not only the biggest one:
+            # a webcam is small, and an on-screen character (a cutscene face or a
+            # standing NPC) is larger and used to win the single slot. The
+            # clustering below keeps the place where candidates keep coming back.
+            for face in screencast_layout.detect_faces_full_res(frame):
+                if is_cornered(face['box'], frame_w, frame_h):
+                    boxes.append(inset_box(face['box'], frame_w, frame_h, face=True))
+            for body in person_boxes(frame):
+                if is_cornered(body, frame_w, frame_h):
+                    boxes.append(inset_box(body, frame_w, frame_h, face=False))
     finally:
         cap.release()
 
@@ -259,14 +312,19 @@ def stable_box(boxes, frame_w, frame_h, min_agree=3):
     # subject that actually moves.
     centres_x = arr[:, 0] + arr[:, 2] / 2.0
     centres_y = arr[:, 1] + arr[:, 3] / 2.0
-    mid_x, mid_y = np.median(centres_x), np.median(centres_y)
     tolerance = frame_w * MAX_CENTRE_SPREAD
-    close = ((np.abs(centres_x - mid_x) <= tolerance)
-             & (np.abs(centres_y - mid_y) <= tolerance))
-    if close.sum() < max(min_agree, 0.6 * len(boxes)):
+    # Several subjects can be candidates in the same run (a webcam, a cutscene
+    # face, a person behind it), so the agreement test runs on the best-supported
+    # place rather than on the median of everything. A webcam is pinned, so its
+    # candidates pile up in one spot; a wandering presenter's do not.
+    near = ((np.abs(centres_x[:, None] - centres_x[None, :]) <= tolerance)
+            & (np.abs(centres_y[:, None] - centres_y[None, :]) <= tolerance))
+    support = near.sum(axis=1)
+    best = int(np.argmax(support))
+    if support[best] < max(min_agree, 0.3 * len(boxes)):
         return None
 
-    arr = arr[close]
+    arr = arr[near[best]]
     median = tuple(int(v) for v in np.median(arr, axis=0))
     if not usable(median, frame_h):
         return None
@@ -378,10 +436,10 @@ def present_in_scene(video_path, box, start_f, end_f, samples=3):
             ok, frame = cap.read()
             if not ok:
                 continue
+            # Every face and every person counts: the largest person in the frame is
+            # often an on-screen character, and the webcam's own person is smaller.
             dets = [c['box'] for c in screencast_layout.detect_faces_full_res(frame)]
-            if not any(_centre_inside(d, box, slack) for d in dets):
-                person = m.detect_person_yolo(frame)
-                dets = [person] if person else []
+            dets += person_boxes(frame)
             if any(_centre_inside(d, box, slack) for d in dets):
                 hits += 1
     finally:
@@ -389,57 +447,105 @@ def present_in_scene(video_path, box, start_f, end_f, samples=3):
     return hits * 2 > samples
 
 
-MAX_CAMERA_RATIO = 0.40
+# Stream layout: the webcam band is the top 30% of the output frame, and the
+# gameplay fills the rest (70%). 25% clipped faces on several streams.
+# See inset_filtergraph.
+WEBCAM_BAND_RATIO = 0.30
 
 
-def inset_filtergraph(orig_w, orig_h, out_w, out_h, box, camera_ratio=None):
-    """Screen on top at full width, the webcam inset below.
+def _fill_crop(src_w, src_h, out_w, out_h):
+    """The largest centred crop of the source with the output's aspect ratio.
 
-    The screen keeps its whole width, which is the point: a game HUD or a
-    desktop puts what matters at the edges. The inset is scaled up so the person
-    reads at a size the source never gave them.
-
-    The camera band takes its height from the INSET'S OWN aspect ratio rather
-    than a fixed share of the frame. A fixed share was tried first and stretched
-    every face sideways: a 16:9 inset forced into a 2:1 band is a 12% horizontal
-    stretch, and it is immediately visible on a face.
+    Returns (w, h, x, y), all even, so the gameplay fills a band without being
+    stretched.
     """
+    target = out_w / float(out_h)
+    if src_w / float(src_h) > target:
+        h = src_h - src_h % 2
+        w = min(src_w, int(round(src_h * target)))
+    else:
+        w = src_w - src_w % 2
+        h = min(src_h, int(round(src_w / target)))
+    w -= w % 2
+    h -= h % 2
+    x = max(0, (src_w - w) // 2)
+    y = max(0, (src_h - h) // 2)
+    return w, h, x - x % 2, y - y % 2
+
+
+def _cover_crop(x, y, w, h, aspect):
+    """The largest even crop of the box (x, y, w, h) with the band's aspect, centred on it.
+
+    The crop is trimmed out of the box and never grows past it, so the band is filled
+    by the camera alone: the gameplay around the box never shows inside the band. The
+    box's narrow axis is kept whole. Its long axis is trimmed mostly from the bottom,
+    where the stream's overlay and the desk are, so the head stays inside the band.
+    """
+    x -= x % 2
+    y -= y % 2
+    w -= w % 2
+    h -= h % 2
+    if w / float(h) < aspect:
+        crop_w = w
+        crop_h = min(h, int(w / aspect) // 2 * 2)
+    else:
+        crop_h = h
+        crop_w = min(w, int(h * aspect) // 2 * 2)
+    # Centred across the width; down the height a quarter of the trim comes off the top.
+    return x + ((w - crop_w) // 4) * 2, y + ((h - crop_h) // 8) * 2, crop_w, crop_h
+
+
+def inset_filtergraph(orig_w, orig_h, out_w, out_h, box, camera_ratio=None, webcam_on_top=None):
+    """Composites screen and webcam inset vertically on blurred backdrop.
+
+    The streamer webcam sits on top and gameplay/screen below by default (`webcam_on_top=True`).
+    When `webcam_on_top=False`, screen on top and webcam below.
+
+    Layout: the webcam band is the top 30% of the frame and the gameplay fills
+    the bottom 70%. The webcam band is filled by the camera alone: its box is
+    trimmed to the band's shape, centred, so no gameplay shows inside the band.
+    The gameplay is a centred crop of the source, so its left and right edges
+    (and any HUD in those corners) are lost.
+    """
+    if webcam_on_top is None:
+        webcam_on_top = os.environ.get('WEBCAM_ON_TOP', '1').strip().lower() in ('1', 'true', 'yes')
+
     box_w = max(2, box[2])
     box_h = max(2, box[3])
 
-    if camera_ratio is not None:
-        cam_h = int(out_h * camera_ratio)
-    else:
-        cam_h = int(round(out_w * box_h / float(box_w)))
-    cam_h = min(cam_h, int(out_h * MAX_CAMERA_RATIO))
+    if camera_ratio is None:
+        camera_ratio = WEBCAM_BAND_RATIO
+    cam_h = int(round(out_h * camera_ratio))
     cam_h -= cam_h % 2
 
-    screen_h = int(round(out_w * orig_h / float(orig_w)))
-    screen_h -= screen_h % 2
-    screen_h = max(2, min(screen_h, out_h - cam_h - 2))
+    # The gameplay fills everything the webcam band does not take.
+    screen_h = out_h - cam_h
+    screen_crop_w, screen_crop_h, screen_crop_x, screen_crop_y = _fill_crop(orig_w, orig_h, out_w, screen_h)
 
-    # Widen (or heighten) the crop to the band's aspect so the scale below is
-    # uniform. Clamped to the frame, so an inset hard against an edge simply
-    # keeps whatever it can reach.
-    target_aspect = out_w / float(cam_h)
+    # The band is filled by the camera alone: the box is trimmed to the band's shape,
+    # centred, and scaled up to the band. Nothing is grown past the box, so no gameplay
+    # shows inside the band. The box is clamped to the frame first.
     x, y, w, h = box
-    if w / float(h) < target_aspect:
-        want_w = min(orig_w, int(round(h * target_aspect)))
-        x = int(round(x + w / 2.0 - want_w / 2.0))
-        w = want_w
+    w = max(2, min(int(round(w)), orig_w))
+    h = max(2, min(int(round(h)), orig_h))
+    x = max(0, min(int(round(x)), orig_w - w))
+    y = max(0, min(int(round(y)), orig_h - h))
+    crop_x, crop_y, crop_w, crop_h = _cover_crop(x, y, w, h, out_w / float(cam_h))
+    fit_w, fit_h = out_w, cam_h
+    cam_x, cam_y = 0, 0
+
+    if webcam_on_top:
+        overlay_chain = (
+            f"[bg][cam]overlay=x={cam_x}:y={cam_y}[withcam];"
+            f"[withcam][screen]overlay=x=0:y={cam_h},"
+            f"setsar=1[v]"
+        )
     else:
-        want_h = min(orig_h, int(round(w / target_aspect)))
-        y = int(round(y + h / 2.0 - want_h / 2.0))
-        h = want_h
-    x = max(0, min(x, orig_w - w))
-    y = max(0, min(y, orig_h - h))
-
-    w -= w % 2
-    h -= h % 2
-    x -= x % 2
-    y -= y % 2
-
-    filler_h = out_h - screen_h - cam_h
+        overlay_chain = (
+            f"[bg][screen]overlay=x=0:y=0[withscreen];"
+            f"[withscreen][cam]overlay=x={cam_x}:y={screen_h + cam_y},"
+            f"setsar=1[v]"
+        )
 
     return (
         f"[0:v]split=3[bga][sa][ca];"
@@ -447,9 +553,8 @@ def inset_filtergraph(orig_w, orig_h, out_w, out_h, box, camera_ratio=None):
         # HEIGHT: scaling a 16:9 source to 1080 wide gives 608 tall, and there
         # is no 1920-tall crop to take out of that.
         f"[bga]{blurred_backdrop(out_w, out_h, 14)}[bg];"
-        f"[sa]scale={out_w}:{screen_h}[screen];"
-        f"[ca]crop=w={w}:h={h}:x={x}:y={y},scale={out_w}:{cam_h}[cam];"
-        f"[bg][screen]overlay=x=0:y={filler_h // 2}[withscreen];"
-        f"[withscreen][cam]overlay=x=0:y={filler_h // 2 + screen_h},"
-        f"setsar=1[v]"
+        f"[sa]crop=w={screen_crop_w}:h={screen_crop_h}:x={screen_crop_x}:y={screen_crop_y},"
+        f"scale={out_w}:{screen_h}[screen];"
+        f"[ca]crop=w={crop_w}:h={crop_h}:x={crop_x}:y={crop_y},scale={fit_w}:{fit_h}[cam];"
+        f"{overlay_chain}"
     )

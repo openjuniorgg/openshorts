@@ -94,3 +94,41 @@ def test_best_stretch_stays_inside_the_vod_and_needs_a_signal():
     assert e == 6 * 3600 and s == e - 1800
     assert ts.best_stretch([], 6 * 3600, 1800) is None
     assert ts.best_stretch(clips, 1200, 1800) is None   # VOD fits whole
+
+
+def test_is_stream_source_env(monkeypatch):
+    monkeypatch.delenv("IS_STREAM_SOURCE", raising=False)
+    assert ts.is_stream_source() is False
+
+    monkeypatch.setenv("IS_STREAM_SOURCE", "1")
+    assert ts.is_stream_source() is True
+    assert ts.is_stream_source("https://example.com/video.mp4") is True
+
+
+def test_is_stream_source_twitch():
+    assert ts.is_stream_source(url="https://www.twitch.tv/videos/123456789") is True
+    assert ts.is_stream_source(url="https://m.twitch.tv/videos/123456789") is True
+    assert ts.is_stream_source(url="https://twitch.tv/streamername") is True
+    assert ts.is_stream_source(info={"extractor": "twitch:vod"}) is True
+    assert ts.is_stream_source(info={"extractor_key": "TwitchVod"}) is True
+    assert ts.is_stream_source(info={"extractor": "Twitch"}) is True
+
+
+def test_is_stream_source_youtube_live():
+    assert ts.is_stream_source(url="https://www.youtube.com/live/dQw4w9WgXcQ") is True
+    assert ts.is_stream_source(url="https://youtube.com/live/xyz123?feature=share") is True
+    assert ts.is_stream_source(info={"is_live": True}) is True
+    assert ts.is_stream_source(info={"was_live": True}) is True
+    assert ts.is_stream_source(info={"live_status": "is_live"}) is True
+    assert ts.is_stream_source(info={"live_status": "was_live"}) is True
+    assert ts.is_stream_source(info={"live_status": "post_live"}) is True
+
+
+def test_is_stream_source_regular_video(monkeypatch):
+    monkeypatch.delenv("IS_STREAM_SOURCE", raising=False)
+    assert ts.is_stream_source(url="https://www.youtube.com/watch?v=dQw4w9WgXcQ") is False
+    assert ts.is_stream_source(url="https://vimeo.com/12345") is False
+    assert ts.is_stream_source(url="C:/path/to/video.mp4") is False
+    assert ts.is_stream_source(info={"is_live": False, "live_status": "not_live"}) is False
+    assert ts.is_stream_source() is False
+

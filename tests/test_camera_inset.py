@@ -107,28 +107,84 @@ class TestInsetFiltergraph:
         assert "[screen]" in graph and "[cam]" in graph
         assert graph.endswith("[v]")
 
-    def test_screen_band_is_never_cropped(self):
-        # The whole point: a game HUD or a desktop keeps its edges.
+    def test_webcam_on_top_by_default(self):
+        graph = inset_filtergraph(1920, 1080, 1080, 1920, (1500, 880, 350, 200))
+        # Streamer webcam is placed on top, gameplay/screen is placed on bottom
+        assert "[bg][cam]overlay=x=" in graph
+        assert "[withcam];" in graph
+        assert "[withcam][screen]overlay=x=0:y=576" in graph
+        assert graph.endswith(",setsar=1[v]")
+
+    def test_webcam_on_top_explicit_true(self):
+        graph = inset_filtergraph(1920, 1080, 1080, 1920, (1500, 880, 350, 200), webcam_on_top=True)
+        assert "[bg][cam]overlay=x=" in graph
+        assert "[withcam][screen]overlay=x=0:y=576" in graph
+
+    def test_webcam_on_top_false_places_screen_on_top(self):
+        graph = inset_filtergraph(1920, 1080, 1080, 1920, (1500, 880, 350, 200), webcam_on_top=False)
+        # Previous behavior: screen on top, camera below
+        assert "[bg][screen]overlay=x=0:y=" in graph
+        assert "[withscreen];" in graph
+        assert "[withscreen][cam]overlay=x=" in graph
+        assert graph.endswith(",setsar=1[v]")
+
+    def test_webcam_on_top_environment_variable(self, monkeypatch):
+        monkeypatch.setenv("WEBCAM_ON_TOP", "0")
+        graph_bottom = inset_filtergraph(1920, 1080, 1080, 1920, (1500, 880, 350, 200))
+        assert "[bg][screen]overlay=x=0:y=" in graph_bottom
+        assert "[withscreen][cam]overlay=x=" in graph_bottom
+
+        monkeypatch.setenv("WEBCAM_ON_TOP", "true")
+        graph_top = inset_filtergraph(1920, 1080, 1080, 1920, (1500, 880, 350, 200))
+        assert "[bg][cam]overlay=x=" in graph_top
+        assert "[withcam][screen]overlay=x=0:y=576" in graph_top
+
+    def test_gameplay_fills_the_bottom_three_quarters(self):
+        # The stream layout: webcam top 30%, gameplay bottom 70% (1344 of 1920).
         graph = inset_filtergraph(1920, 1080, 1080, 1920, (1500, 880, 350, 200))
         screen = graph.split("[sa]")[-1].split("[screen]")[0]
-        assert "crop" not in screen
-        assert "scale=1080:608" in screen
+        assert "scale=1080:1344" in screen
+        # Centred crop of the 16:9 source to 1080:1344: 868 px wide, full height.
+        assert "crop=w=868:h=1080:x=526:y=0" in screen
 
-    def test_camera_band_keeps_the_inset_aspect(self):
-        # A 16:9 inset must not be stretched into a wider band; that shows up
-        # instantly on a face.
-        graph = inset_filtergraph(1920, 1080, 1080, 1920, (1500, 880, 356, 200))
-        cam = graph.split("[ca]")[-1].split("[cam]")[0]
-        crop_w = int(cam.split("w=")[1].split(":")[0])
-        crop_h = int(cam.split("h=")[1].split(":")[0])
-        band_h = int(cam.split("scale=1080:")[1].split("[")[0])
-        assert abs((crop_w / crop_h) - (1080 / band_h)) < 0.05
+    def test_gameplay_keeps_its_aspect_when_cropped(self):
+        graph = inset_filtergraph(1920, 1080, 1080, 1920, (1500, 880, 350, 200))
+        screen = graph.split("[sa]")[-1].split("[screen]")[0]
+        w = int(screen.split("crop=w=")[1].split(":")[0])
+        h = int(screen.split("h=")[1].split(":")[0])
+        assert abs((w / h) - (1080 / 1344)) < 0.01
 
-    def test_camera_band_is_capped(self):
-        # A near-square inset would otherwise claim most of the frame.
+    def test_webcam_fills_the_band_with_the_camera_alone(self):
+        # The camera box is trimmed to the band's shape and never grown past it:
+        # 350x200 becomes the 350x186 crop inside it, filling the 1080x576 band.
+        graph = inset_filtergraph(1920, 1080, 1080, 1920, (1500, 880, 350, 200))
+        assert "crop=w=350:h=186:x=1500:y=882" in graph
+        assert "scale=1080:576[cam]" in graph
+        assert "[bg][cam]overlay=x=0:y=0" in graph
+
+    def test_the_camera_is_never_stretched(self):
+        graph = inset_filtergraph(1920, 1080, 1080, 1920, (1500, 880, 350, 200))
+        crop = graph.split("[ca]")[-1].split("[cam]")[0]
+        cw, ch = int(crop.split("w=")[1].split(":")[0]), int(crop.split("h=")[1].split(":")[0])
+        assert abs((cw / ch) - (1080 / 576)) < 0.01
+
+    def test_a_square_webcam_is_trimmed_to_the_band_inside_its_box(self):
+        graph = inset_filtergraph(1920, 1080, 1080, 1920, (1400, 500, 300, 300))
+        crop = graph.split("[ca]")[-1].split("[cam]")[0]
+        cx = int(crop.split("x=")[1].split(":")[0])
+        cy = int(crop.split("y=")[1].split(",")[0])
+        cw, ch = int(crop.split("w=")[1].split(":")[0]), int(crop.split("h=")[1].split(":")[0])
+        assert abs((cw / ch) - (1080 / 576)) < 0.01
+        # the crop lies inside the webcam box (x 1400..1700, y 500..800): no gameplay in the band
+        assert cx >= 1400 and cx + cw <= 1700 and cy >= 500 and cy + ch <= 800
+        assert "[bg][cam]overlay=x=0:y=0" in graph
+
+    def test_webcam_band_is_30_percent_of_the_frame(self):
+        import re
         graph = inset_filtergraph(1920, 1080, 1080, 1920, (1500, 700, 300, 290))
-        band_h = int(graph.split("[cam]")[0].split("scale=1080:")[-1])
-        assert band_h <= 1920 * 0.40 + 2
+        assert "[withcam][screen]overlay=x=0:y=576" in graph  # gameplay starts at 30%
+        fitted_h = int(re.search(r"scale=(\d+):(\d+)\[cam\]", graph).group(2))
+        assert fitted_h <= 576
 
     def test_crop_coordinates_stay_inside_the_source(self):
         graph = inset_filtergraph(1920, 1080, 1080, 1920, (1850, 1000, 70, 80))

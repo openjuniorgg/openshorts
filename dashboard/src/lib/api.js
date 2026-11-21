@@ -81,3 +81,37 @@ export async function apiJson(path, options = {}) {
   }
   return res.json();
 }
+
+// Live stream monitor client helpers
+export async function startLiveMonitor(channels, highlightSeconds = 120) {
+  const geminiKey = localStorage.getItem('gemini_key');
+  const headers = { 'Content-Type': 'application/json' };
+  if (geminiKey) headers['X-Gemini-Key'] = geminiKey;
+  return apiJson('/api/live-monitor/start', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ channels, highlight_seconds: highlightSeconds }),
+  });
+}
+
+export async function stopLiveMonitor() {
+  return apiJson('/api/live-monitor/stop', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+export async function getLiveMonitorStatus() {
+  return apiJson('/api/live-monitor/status');
+}
+
+export async function triggerLiveClip(channel) {
+  const geminiKey = localStorage.getItem('gemini_key');
+  const headers = { 'Content-Type': 'application/json' };
+  if (geminiKey) headers['X-Gemini-Key'] = geminiKey;
+  return apiJson('/api/live-monitor/clip', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ channel }),
+  });
+}

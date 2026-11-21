@@ -19,18 +19,18 @@ def _clean_env(monkeypatch):
 
 
 class TestClipDurationBounds:
-    def test_defaults_are_the_classic_band(self):
-        assert clip_selection.clip_duration_bounds() == (15.0, 60.0)
+    def test_defaults_are_the_15_to_120_band(self):
+        assert clip_selection.clip_duration_bounds() == (15.0, 120.0)
 
     def test_env_overrides_apply(self, monkeypatch):
         monkeypatch.setenv("CLIP_MIN_SECONDS", "20")
         monkeypatch.setenv("CLIP_MAX_SECONDS", "30")
         assert clip_selection.clip_duration_bounds() == (20.0, 30.0)
 
-    def test_clamped_to_platform_limits(self, monkeypatch):
+    def test_clamped_to_15_120(self, monkeypatch):
         monkeypatch.setenv("CLIP_MIN_SECONDS", "1")
         monkeypatch.setenv("CLIP_MAX_SECONDS", "9999")
-        assert clip_selection.clip_duration_bounds() == (5.0, 180.0)
+        assert clip_selection.clip_duration_bounds() == (15.0, 120.0)
 
     def test_degenerate_band_keeps_a_real_range(self, monkeypatch):
         # max below min must widen, not invert or collapse.
@@ -42,14 +42,14 @@ class TestClipDurationBounds:
     def test_garbage_falls_back_to_defaults(self, monkeypatch):
         monkeypatch.setenv("CLIP_MIN_SECONDS", "garbage")
         monkeypatch.setenv("CLIP_MAX_SECONDS", "")
-        assert clip_selection.clip_duration_bounds() == (15.0, 60.0)
+        assert clip_selection.clip_duration_bounds() == (15.0, 120.0)
 
 
 def _templates():
     """The prompt template constants, read without importing gemini_worker
     (which pulls google-genai — absent in the thin CI env)."""
-    mod = ast.parse(open(os.path.join(os.path.dirname(__file__), "..",
-                                      "gemini_worker.py")).read())
+    with open(os.path.join(os.path.dirname(__file__), "..", "gemini_worker.py"), encoding="utf-8") as fh:
+        mod = ast.parse(fh.read())
     return {
         node.targets[0].id: node.value.value
         for node in mod.body

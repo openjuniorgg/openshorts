@@ -191,10 +191,11 @@ def vision_segments(video_duration, segment_seconds, max_segments):
 
 def clip_duration_bounds():
     """The clip length band (seconds) the selection prompts and word-snapping
-    enforce. ``CLIP_MIN_SECONDS`` / ``CLIP_MAX_SECONDS`` override the classic
-    15-60 — set per job by /api/process when the user asks for a specific
-    length, or by hand for A/B runs. Values are clamped to platform-sane
-    limits and re-ordered so bad input degrades instead of breaking the job.
+    enforce. ``CLIP_MIN_SECONDS`` / ``CLIP_MAX_SECONDS`` override the default
+    15-120 — set per job by /api/process when the user asks for a specific
+    length, or by hand for A/B runs. The band is always inside 15-120 s:
+    values are clamped to it and re-ordered so bad input degrades instead of
+    breaking the job.
     """
     import os
 
@@ -205,11 +206,11 @@ def clip_duration_bounds():
             return default
 
     lo = _read("CLIP_MIN_SECONDS", 15.0)
-    hi = _read("CLIP_MAX_SECONDS", 60.0)
-    lo = min(max(lo, 5.0), 175.0)
-    hi = min(max(hi, 10.0), 180.0)
+    hi = _read("CLIP_MAX_SECONDS", 120.0)
+    lo = min(max(lo, 15.0), 120.0)
+    hi = min(max(hi, 15.0), 120.0)
     if hi < lo + 5.0:  # keep a real band: degenerate ranges starve the model
-        hi = min(180.0, lo + 5.0)
+        hi = min(120.0, lo + 5.0)
     return round(lo, 3), round(hi, 3)
 
 

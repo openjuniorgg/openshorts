@@ -67,13 +67,13 @@ load_dotenv()
 ASPECT_RATIO = 9 / 16
 
 GEMINI_PROMPT_TEMPLATE = """
-You are a senior short-form video editor. Read the ENTIRE transcript and word-level timestamps to choose the 3–15 MOST VIRAL moments for TikTok/IG Reels/YouTube Shorts. Each clip must be between 15 and 60 seconds long.
+You are a senior short-form video editor. Read the ENTIRE transcript and word-level timestamps to choose the 3–15 MOST VIRAL moments for TikTok/IG Reels/YouTube Shorts. Each clip must be between 15 and 120 seconds long.
 
 ⚠️ FFMPEG TIME CONTRACT — STRICT REQUIREMENTS:
 - Return timestamps in ABSOLUTE SECONDS from the start of the video (usable in: ffmpeg -ss <start> -to <end> -i <input> ...).
 - Only NUMBERS with decimal point, up to 3 decimals (examples: 0, 1.250, 17.350).
 - Ensure 0 ≤ start < end ≤ VIDEO_DURATION_SECONDS.
-- Each clip between 15 and 60 s (inclusive).
+- Each clip between 15 and 120 s (inclusive).
 - Prefer starting 0.2–0.4 s BEFORE the hook and ending 0.2–0.4 s AFTER the payoff.
 - Use silence moments for natural cuts; never cut in the middle of a word or phrase.
 - STRICTLY FORBIDDEN to use time formats other than absolute seconds.
@@ -88,7 +88,7 @@ WORDS_JSON (array of {{w, s, e}} where s/e are seconds):
 
 STRICT EXCLUSIONS:
 - No generic intros/outros or purely sponsorship segments unless they contain the hook.
-- No clips < 15 s or > 60 s.
+- No clips < 15 s or > 120 s.
 
 OUTPUT — RETURN ONLY VALID JSON (no markdown, no comments). Order clips by predicted performance (best to worst). In the descriptions, ALWAYS include a CTA like "Follow me and comment X and I'll send you the workflow" (especially if discussing an n8n workflow):
 {{
@@ -895,6 +895,9 @@ def download_youtube_video(url, output_dir=".", on_audio=None, allow_paid=True,
     # wait minutes for another job's download of the same video, which an
     # in-process caller on a shared executor must not; nor with a cap, which
     # expects the fetch itself to stop there.
+    if twitch_signals.is_stream_source(url=url):
+        os.environ['IS_STREAM_SOURCE'] = '1'
+
     cacheable = (use_cache and cap_minutes is None and source_cache.enabled()
                  and bool(source_cache.video_id(url)))
     if not cacheable:
@@ -1121,6 +1124,8 @@ def _download_youtube_video(url, output_dir=".", on_audio=None, allow_paid=True,
         with (yt_session.request() if (cookies and cookies_path) else contextlib.nullcontext()):
             with yt_dlp.YoutubeDL(_base_opts(extractor_args, proxy, cookies)) as ydl:
                 info = ydl.extract_info(url, download=False, process=False)
+        if twitch_signals.is_stream_source(url=url, info=info):
+            os.environ['IS_STREAM_SOURCE'] = '1'
         # Media URLs another program will fetch (ffmpeg on a ranged or HLS
         # download) resolve outside the Python guard: check them here. YouTube's
         # own CDN hosts are skipped (dozens of them, never internal).
@@ -2742,11 +2747,14 @@ if __name__ == '__main__':
     def _report_job_cpu():
         """CPU time of the whole job (this process + every ffmpeg it waited
         for) for app.py's log, to compare pipeline versions per job."""
-        import resource
-        own = resource.getrusage(resource.RUSAGE_SELF)
-        kids = resource.getrusage(resource.RUSAGE_CHILDREN)
-        py_s = own.ru_utime + own.ru_stime
-        children_s = kids.ru_utime + kids.ru_stime
+        try:
+            import resource
+            own = resource.getrusage(resource.RUSAGE_SELF)
+            kids = resource.getrusage(resource.RUSAGE_CHILDREN)
+            py_s = own.ru_utime + own.ru_stime
+            children_s = kids.ru_utime + kids.ru_stime
+        except (ImportError, ModuleNotFoundError, AttributeError):
+            py_s = children_s = 0.0
         # Where Parakeet ran (None: this job did not load it). A "cpu" here on
         # a GPU host means the image shipped onnxruntime without CUDA.
         asr = sys.modules.get("transcribe_backends")
@@ -2780,6 +2788,8 @@ if __name__ == '__main__':
 
     # 1. Get Input Video
     if args.url:
+        if twitch_signals.is_stream_source(url=args.url):
+            os.environ['IS_STREAM_SOURCE'] = '1'
         # For multi-clip runs, treat --output as an OUTPUT DIRECTORY (create it if needed).
         # For whole-video runs (--skip-analysis), --output can be a file path.
         if args.output and not args.skip_analysis:
@@ -3019,170 +3029,189 @@ if __name__ == '__main__':
             clips_data = get_visual_clips(input_video, duration, viewer_clips=viewer_clips)
 
         if not clips_data or 'shorts' not in clips_data:
-            # Deliberately fail instead of reframing the whole video: that path
-            # wrote no metadata.json, so app.py marked the job failed anyway
-            # (app.py:1087) after burning GPU on a render nobody could see.
-            raise RuntimeError(
-                "Clip detection failed — the AI model did not return usable clips for this video.")
-        else:
-            print(f"🔥 Found {len(clips_data['shorts'])} clips!")
+            # If this is a live stream highlight or already a short video (<= 90s),
+            # treat the entire extracted segment as the highlight clip!
+            if duration <= 90.0 or os.environ.get("IS_STREAM_SOURCE") == "1":
+                print(f"⚡ Live stream highlight ({duration:.1f}s): using entire extracted highlight as short.")
+                clips_data = {
+                    "shorts": [{
+                        "start": 0.0,
+                        "end": round(duration, 2),
+                        "duration": round(duration, 2),
+                        "title": video_title,
+                        "hook": "🔥 Live Stream Highlight",
+                        "summary": "Live stream highlight clip",
+                        "score": 9.8
+                    }]
+                }
+            else:
+                # Deliberately fail instead of reframing the whole video: that path
+                # wrote no metadata.json, so app.py marked the job failed anyway
+                # (app.py:1087) after burning GPU on a render nobody could see.
+                raise RuntimeError(
+                    "Clip detection failed — the AI model did not return usable clips for this video.")
 
-            # Save metadata. Silent videos have no transcript → no subtitles,
-            # which is correct (there's no speech to caption).
-            clips_data['transcript'] = transcript or {"language": "none", "segments": []}
-            # The clip editor's re-render path needs to find the source video
-            # again and reproduce the render settings, so record both. The
-            # basename is enough — the file sits in the job dir (URL jobs with
-            # --keep-original) or in uploads/ (upload jobs).
-            clips_data['source_video'] = os.path.basename(input_video)
-            clips_data['output_format'] = output_format
-            if source_subtitle_band:
-                clips_data['source_subtitle_band'] = source_subtitle_band
-            metadata_file = os.path.join(output_dir, f"{video_title}_metadata.json")
-            write_json_atomic(metadata_file, clips_data, indent=2)
-            print(f"   Saved metadata to {metadata_file}")
+        print(f"🔥 Found {len(clips_data['shorts'])} clips!")
 
-            # 5. Process clips in parallel: each worker cuts + renders one
-            # clip. Renders are mostly ffmpeg subprocesses (parallelize well);
-            # detector inference is serialized internally via DETECT_LOCK.
-            def _process_one_clip(i, clip):
-                if clip.get('pro_before'):
-                    # A retry of a clip whose first attempt got as far as pro
-                    # mode: start again from the range Gemini picked.
-                    import pro_mode
-                    clip.update(pro_mode.restore(clip))
-                start = clip['start']
-                end = clip['end']
-                print(f"\n🎬 Processing Clip {i+1}: {start}s - {end}s")
-                print(f"   Title: {clip.get('video_title_for_youtube_short', 'No Title')}")
+        # Save metadata. Silent videos have no transcript → no subtitles,
+        # which is correct (there's no speech to caption).
+        clips_data['transcript'] = transcript or {"language": "none", "segments": []}
+        # The clip editor's re-render path needs to find the source video
+        # again and reproduce the render settings, so record both. The
+        # basename is enough — the file sits in the job dir (URL jobs with
+        # --keep-original) or in uploads/ (upload jobs).
+        clips_data['source_video'] = os.path.basename(input_video)
+        clips_data['output_format'] = output_format
+        if source_subtitle_band:
+            clips_data['source_subtitle_band'] = source_subtitle_band
+        metadata_file = os.path.join(output_dir, f"{video_title}_metadata.json")
+        write_json_atomic(metadata_file, clips_data, indent=2)
+        print(f"   Saved metadata to {metadata_file}")
 
-                clip_filename = f"{video_title}_clip_{i+1}.mp4"
-                clip_temp_path = os.path.join(output_dir, f"temp_{clip_filename}")
-                clip_final_path = os.path.join(output_dir, clip_filename)
+        # 5. Process clips in parallel: each worker cuts + renders one
+        # clip. Renders are mostly ffmpeg subprocesses (parallelize well);
+        # detector inference is serialized internally via DETECT_LOCK.
+        def _process_one_clip(i, clip):
+            if clip.get('pro_before'):
+                # A retry of a clip whose first attempt got as far as pro
+                # mode: start again from the range Gemini picked.
+                import pro_mode
+                clip.update(pro_mode.restore(clip))
+            start = clip['start']
+            end = clip['end']
+            print(f"\n🎬 Processing Clip {i+1}: {start}s - {end}s")
+            print(f"   Title: {clip.get('video_title_for_youtube_short', 'No Title')}")
 
-                try:
-                    # ffmpeg cut — re-encoding for precision on strict seconds
-                    cut_clip(input_video, clip_temp_path, start, end, i + 1)
+            clip_filename = f"{video_title}_clip_{i+1}.mp4"
+            clip_temp_path = os.path.join(output_dir, f"temp_{clip_filename}")
+            clip_final_path = os.path.join(output_dir, clip_filename)
 
-                    # Layer order: the canonical reframe stays CLEAN, the hook
-                    # is a derived hooked_ file, captions go last on top of
-                    # whichever is current, and on the free plan the served
-                    # file is a wm_ copy of that final (mark_delivery). The
-                    # mark used to ride the reframe encode, which made it
-                    # permanent: paying could not remove it from clips already
-                    # made. Each worker writes only its own clip dict, so the
-                    # re-dump after the pool is race-free.
-                    success = render_clip(clip_temp_path, clip_final_path, output_format,
-                                          subtitle_band=source_subtitle_band)
-                    if success:
-                        print(f"   🎞️ Clip {i+1} framed")
-                    deliver_path = clip_final_path
-                    # Which stretches were stacked (SPLIT): captions go on the
-                    # seam there, and /api/subtitle needs it again later.
-                    import layout_ranges as _layouts
-                    clip['layout_ranges'] = _layouts.read(clip_final_path)
-                    # The hook was written from the transcript alone. When the
-                    # render put this clip's meaning on the screen, rewrite hook
-                    # and title from three of its frames BEFORE burning them.
-                    if success and hook_grounding.wanted(clip['layout_ranges'], end - start):
-                        hook_grounding.reground(clip_final_path, clip, transcript, start, end)
-                    captioned = None
-                    # Pro mode replaces the file the hook and the captions go
-                    # on, and the timeline they are laid on (its cuts); the
-                    # canonical reframe stays, it is the clip's normal mode.
-                    base_path, words, w_start, w_end = clip_final_path, transcript, start, end
-                    pro = pro_clip(clip_final_path, clip, transcript) if success else None
-                    cap_style = None
-                    if pro:
-                        deliver_path = base_path = pro[0]
-                        words, w_start, w_end = pro[1:]
-                        cap_style = clip.get('caption_style')
-                    split_ranges = _layouts.split_ranges(clip['layout_ranges'])
-                    if success and os.environ.get("AUTO_HOOK") == "1":
-                        # Captions ride the hook's ffmpeg (one decode, two
-                        # outputs) when both are on; see auto_hook_clip.
-                        plan = None
-                        if (clip.get('viral_hook_text') or '').strip():
-                            plan = auto_caption_clip(base_path, words, w_start, w_end,
-                                                     split_ranges=split_ranges, plan_only=True,
-                                                     style=cap_style)
-                        hooked = auto_hook_clip(base_path, clip, captions=plan,
-                                                mark=os.environ.get("WATERMARK") == "1")
-                        if hooked:
-                            deliver_path, clip['auto_hook'] = hooked
-                            captioned = clip['auto_hook'].pop("_captioned", None)
-                    if success:
-                        if not captioned:
-                            captioned = auto_caption_clip(
-                                deliver_path, words, w_start, w_end,
-                                split_ranges=split_ranges,
-                                mark=os.environ.get("WATERMARK") == "1",
-                                style=cap_style)
-                        served = captioned or deliver_path
-                        if os.environ.get("WATERMARK") == "1":
-                            served = mark_delivery(served)
-                        print(f"   ✅ Clip {i+1} ready: {clip_final_path}")
-                        # Hand the API the file to actually serve for this clip.
-                        # Without it the status poller guesses the clean reframe
-                        # name, so a job in flight showed every clip stripped of
-                        # its hook and captions until the WHOLE job finished and
-                        # the result got rebuilt through _canonical_clip_file.
-                        # Printed only after the full chain (reframe, watermark,
-                        # hook, captions) so the file is complete when it is
-                        # announced, never one that ffmpeg is still writing.
-                        print(f"CLIP_READY {i} {os.path.basename(served)}")
-                    return success
-                finally:
-                    if os.path.exists(clip_temp_path):
-                        os.remove(clip_temp_path)
+            try:
+                # ffmpeg cut — re-encoding for precision on strict seconds
+                cut_clip(input_video, clip_temp_path, start, end, i + 1)
 
-            # 6, not 3: measured side by side on the GPU host at load 48-67, a 7-clip
-            # job finished 16% sooner with the same CPU, and the peak VRAM stayed
-            # at 12 GB of 20 (bench, 25-sep-2026).
-            clip_workers = max(int(os.environ.get("CLIP_WORKERS", "6")), 1)
-            shorts = clips_data['shorts']
-            failed = []
-            if os.environ.get("WATERMARK") == "1":
-                # Tells the /videos guard that the clean twins in this
-                # directory are not for serving (watermarked.MARKER_FILE).
-                import watermarked
-                watermarked.mark_job(output_dir)
-            with ThreadPoolExecutor(max_workers=min(clip_workers, len(shorts))) as pool:
-                # Best clip first: the pool starts work in submission order, so
-                # the user's first delivered clip is the strongest one instead
-                # of whatever came first in the video.
-                futures = {pool.submit(_process_one_clip, i, shorts[i]): i
-                           for i in clip_render_order(shorts)}
-                for future in as_completed(futures):
-                    i = futures[future]
+                # Layer order: the canonical reframe stays CLEAN, the hook
+                # is a derived hooked_ file, captions go last on top of
+                # whichever is current, and on the free plan the served
+                # file is a wm_ copy of that final (mark_delivery). The
+                # mark used to ride the reframe encode, which made it
+                # permanent: paying could not remove it from clips already
+                # made. Each worker writes only its own clip dict, so the
+                # re-dump after the pool is race-free.
+                success = render_clip(clip_temp_path, clip_final_path, output_format,
+                                      subtitle_band=source_subtitle_band)
+                if success:
+                    print(f"   🎞️ Clip {i+1} framed")
+                deliver_path = clip_final_path
+                # Which stretches were stacked (SPLIT): captions go on the
+                # seam there, and /api/subtitle needs it again later.
+                import layout_ranges as _layouts
+                clip['layout_ranges'] = _layouts.read(clip_final_path)
+                # The hook was written from the transcript alone. When the
+                # render put this clip's meaning on the screen, rewrite hook
+                # and title from three of its frames BEFORE burning them.
+                if success and hook_grounding.wanted(clip['layout_ranges'], end - start):
+                    hook_grounding.reground(clip_final_path, clip, transcript, start, end)
+                captioned = None
+                # Pro mode replaces the file the hook and the captions go
+                # on, and the timeline they are laid on (its cuts); the
+                # canonical reframe stays, it is the clip's normal mode.
+                base_path, words, w_start, w_end = clip_final_path, transcript, start, end
+                pro = pro_clip(clip_final_path, clip, transcript) if success else None
+                cap_style = None
+                if pro:
+                    deliver_path = base_path = pro[0]
+                    words, w_start, w_end = pro[1:]
+                    cap_style = clip.get('caption_style')
+                split_ranges = _layouts.split_ranges(clip['layout_ranges'])
+                if success and os.environ.get("AUTO_HOOK") == "1":
+                    # Captions ride the hook's ffmpeg (one decode, two
+                    # outputs) when both are on; see auto_hook_clip.
+                    plan = None
+                    if (clip.get('viral_hook_text') or '').strip():
+                        plan = auto_caption_clip(base_path, words, w_start, w_end,
+                                                 split_ranges=split_ranges, plan_only=True,
+                                                 style=cap_style)
+                    hooked = auto_hook_clip(base_path, clip, captions=plan,
+                                            mark=os.environ.get("WATERMARK") == "1")
+                    if hooked:
+                        deliver_path, clip['auto_hook'] = hooked
+                        captioned = clip['auto_hook'].pop("_captioned", None)
+                if success:
+                    if not captioned:
+                        captioned = auto_caption_clip(
+                            deliver_path, words, w_start, w_end,
+                            split_ranges=split_ranges,
+                            mark=os.environ.get("WATERMARK") == "1",
+                            style=cap_style)
+                    served = captioned or deliver_path
+                    if os.environ.get("WATERMARK") == "1":
+                        served = mark_delivery(served)
+                    print(f"   ✅ Clip {i+1} ready: {clip_final_path}")
+                    # Hand the API the file to actually serve for this clip.
+                    # Without it the status poller guesses the clean reframe
+                    # name, so a job in flight showed every clip stripped of
+                    # its hook and captions until the WHOLE job finished and
+                    # the result got rebuilt through _canonical_clip_file.
+                    # Printed only after the full chain (reframe, watermark,
+                    # hook, captions) so the file is complete when it is
+                    # announced, never one that ffmpeg is still writing.
+                    print(f"CLIP_READY {i} {os.path.basename(served)}")
+                return success
+            finally:
+                if os.path.exists(clip_temp_path):
                     try:
-                        if not future.result():
-                            failed.append(i)
-                    except Exception as e:
-                        print(f"   ❌ Clip {i+1} failed: {type(e).__name__}: {e}")
-                        failed.append(i)
+                        os.remove(clip_temp_path)
+                    except Exception:
+                        pass
 
-            # A clip that failed mid-render is usually a transient GPU / NVENC
-            # condition on a busy card (22-sep-2026: 2 of 3 clips of a job "never
-            # rendered" during a CUDA OOM burst). Try each one once more, alone,
-            # after a pause and with the cache freed, before giving up on it.
-            for i in sorted(failed, key=lambda k: clip_render_order(shorts).index(k)):
-                print(f"   🔁 Retrying clip {i+1} once…")
-                time.sleep(CLIP_RETRY_PAUSE_SECONDS)
-                _free_gpu_cache()
+        # 6, not 3: measured side by side on the GPU host at load 48-67, a 7-clip
+        # job finished 16% sooner with the same CPU, and the peak VRAM stayed
+        # at 12 GB of 20 (bench, 25-sep-2026).
+        clip_workers = max(int(os.environ.get("CLIP_WORKERS", "6")), 1)
+        shorts = clips_data['shorts']
+        failed = []
+        if os.environ.get("WATERMARK") == "1":
+            # Tells the /videos guard that the clean twins in this
+            # directory are not for serving (watermarked.MARKER_FILE).
+            import watermarked
+            watermarked.mark_job(output_dir)
+        with ThreadPoolExecutor(max_workers=min(clip_workers, len(shorts))) as pool:
+            # Best clip first: the pool starts work in submission order, so
+            # the user's first delivered clip is the strongest one instead
+            # of whatever came first in the video.
+            futures = {pool.submit(_process_one_clip, i, shorts[i]): i
+                       for i in clip_render_order(shorts)}
+            for future in as_completed(futures):
+                i = futures[future]
                 try:
-                    if not _process_one_clip(i, shorts[i]):
-                        print(f"   ❌ Clip {i+1} failed again.")
+                    if not future.result():
+                        failed.append(i)
                 except Exception as e:
-                    print(f"   ❌ Clip {i+1} failed again: {type(e).__name__}: {e}")
+                    print(f"   ❌ Clip {i+1} failed: {type(e).__name__}: {e}")
+                    failed.append(i)
 
-            # Persist per-clip render results added by the workers (auto_hook)
-            # so the editor can see what is already burned into each clip.
-            if any('auto_hook' in c or 'hook_grounding' in c or 'pro_suggested' in c
-                   for c in shorts):
-                # Atomic: the dashboard is already reading this file for the
-                # clips announced above (CLIP_READY).
-                write_json_atomic(metadata_file, clips_data, indent=2)
+        # A clip that failed mid-render is usually a transient GPU / NVENC
+        # condition on a busy card (22-sep-2026: 2 of 3 clips of a job "never
+        # rendered" during a CUDA OOM burst). Try each one once more, alone,
+        # after a pause and with the cache freed, before giving up on it.
+        for i in sorted(failed, key=lambda k: clip_render_order(shorts).index(k)):
+            print(f"   🔁 Retrying clip {i+1} once…")
+            time.sleep(CLIP_RETRY_PAUSE_SECONDS)
+            _free_gpu_cache()
+            try:
+                if not _process_one_clip(i, shorts[i]):
+                    print(f"   ❌ Clip {i+1} failed again.")
+            except Exception as e:
+                print(f"   ❌ Clip {i+1} failed again: {type(e).__name__}: {e}")
+
+        # Persist per-clip render results added by the workers (auto_hook)
+        # so the editor can see what is already burned into each clip.
+        if any('auto_hook' in c or 'hook_grounding' in c or 'pro_suggested' in c
+               for c in shorts):
+            # Atomic: the dashboard is already reading this file for the
+            # clips announced above (CLIP_READY).
+            write_json_atomic(metadata_file, clips_data, indent=2)
 
     # Clean up original if requested
     if args.url and not args.keep_original and os.path.exists(input_video):

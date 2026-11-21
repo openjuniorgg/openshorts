@@ -93,9 +93,14 @@ def test_an_empty_retry_is_accepted_rather_than_padded(monkeypatch):
 
 
 def test_scoring_fills_the_shortlist_it_targets(monkeypatch):
-    # 600s -> target 8. Every window is scored, so the shortlist is the top 8
-    # globally instead of the 3-per-batch a constant cap allowed.
+    # 600s -> target 8. Every window is scored, so the shortlist is the top
+    # ones globally instead of the 3-per-batch a constant cap allowed. With
+    # 180 s scoring windows a 600 s video has only four windows, fewer than
+    # the target, so the shortlist takes all of them.
+    from clip_selection import shortlist_target
+
     clips, calls = _run(monkeypatch, [[_clip(i * 60, f"window_{i + 1:03d}")
                                        for i in range(6)]])
+    scored = [i for c in calls if c[0] == "score" for i in c[1]]
     detail_windows = [c[1] for c in calls if c[0] == "detail"][0]
-    assert len(detail_windows) == 8
+    assert len(detail_windows) == min(shortlist_target(600.0), len(scored))

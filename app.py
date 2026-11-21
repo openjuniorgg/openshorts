@@ -3,6 +3,7 @@ import llm_backend
 import re
 import sys
 import uuid
+import webcam_boxes
 import subprocess
 import threading
 import json
@@ -21,7 +22,7 @@ import signal
 import socket
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional, List, Union
 from contextlib import asynccontextmanager, suppress
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Header, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,11 +40,21 @@ import remote_worker
 import yt_account
 from jsonfile import write_json_atomic
 
+try:
+    from live_monitor import LiveMonitor, parse_channel
+except ImportError:
+    LiveMonitor = None
+    parse_channel = None
+
 load_dotenv()
 
 # Constants
 UPLOAD_DIR = "uploads"
 OUTPUT_DIR = "output"
+# Raw clips the live monitor cuts before they become jobs. Swept with the other
+# media by JOB_RETENTION_SECONDS (24 h on self-host), so they never fill the disk.
+LIVE_HIGHLIGHT_DIR = os.path.abspath(os.path.join(UPLOAD_DIR, "live_highlights"))
+os.environ.setdefault("LIVE_HIGHLIGHT_DIR", LIVE_HIGHLIGHT_DIR)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -958,6 +969,12 @@ thumbnail_sessions: Dict[str, Dict] = {}
 publish_jobs: Dict[str, Dict] = {}  # {publish_id: {status, result, error}}
 # Semester to limit concurrency to MAX_CONCURRENT_JOBS
 concurrency_semaphore = asyncio.Semaphore(MAX_CONCURRENT_JOBS)
+
+# Live stream monitoring engine state
+live_monitor_instance: Optional[Any] = None
+_live_monitor_lock = threading.Lock()
+_live_captured_clips: List[Dict[str, Any]] = []
+_app_main_loop: Optional[asyncio.AbstractEventLoop] = None
 
 
 # Queue position + ETA for /api/status. ``_admitting`` holds jobs already taken
@@ -2297,7 +2314,8 @@ def _install_drain_signal_handler():
 def _write_resume_manifest(job_id, cmd, priority, user_id, reservation_id, watermark,
                            webhook_url=None, webhook_secret=None, base_url=None,
                            partial=None, source_cap_minutes=None, skip_statics=False,
-                           via_api_key=False, lane=None, submitted_at=None, topup=False):
+                           via_api_key=False, lane=None, submitted_at=None, topup=False,
+                           live_highlight=False, webcam_box=None):
     try:
         path = os.path.join(OUTPUT_DIR, job_id, _RESUME_FILE)
         # Atomic like every manifest write: the other instance reads them.
@@ -2327,6 +2345,9 @@ def _write_resume_manifest(job_id, cmd, priority, user_id, reservation_id, water
                 "lane": lane or _queue_mode.NORMAL,
                 "submitted_at": submitted_at,
                 "topup": bool(topup),
+                # A live clip keeps its live flag and layout when it is resumed.
+                "live_highlight": bool(live_highlight),
+                "webcam_box": webcam_box,
         })
     except Exception as e:
         print(f"⚠️ Could not write resume manifest for {job_id}: {e}")
@@ -2472,6 +2493,14 @@ def _register_resumed(picked) -> int:
             env["SOURCE_CAP_MINUTES"] = str(m["source_cap_minutes"])
         else:
             env.pop("SOURCE_CAP_MINUTES", None)
+        if m.get("live_highlight"):
+            # A resumed live clip keeps the streamer layout and its clip band.
+            env["IS_STREAM_SOURCE"] = "1"
+            env["WEBCAM_ON_TOP"] = "1"
+            env["CLIP_TARGET_MIN"] = "1"
+            env["CLIP_TARGET_MAX"] = "3"
+            if m.get("webcam_box"):
+                env["WEBCAM_BOX"] = str(m["webcam_box"])
         if m.get("skip_statics"):
             env["DOWNLOAD_SKIP_STATICS"] = "1"
         else:
@@ -2497,6 +2526,7 @@ def _register_resumed(picked) -> int:
             'base_url': m.get("base_url"),
             'via_api_key': bool(m.get("via_api_key")),
             'topup': bool(m.get("topup")),
+            'is_live_highlight': bool(m.get("live_highlight")),
             # It ran before (drain-cut, or an instance that died): its expiry
             # clock and its newest-first place count from that run.
             'last_run': float(m.get("run_started") or m.get("heartbeat") or 0) or None,
@@ -2954,6 +2984,24 @@ def _sweep_expired_uploads(now):
             pass
 
 
+def _sweep_live_highlights(now):
+    """Drop raw live clips older than JOB_RETENTION_SECONDS. The job copy in
+    UPLOAD_DIR is swept by _sweep_expired_uploads; this is the monitor's own file."""
+    folder = os.environ.get("LIVE_HIGHLIGHT_DIR") or LIVE_HIGHLIGHT_DIR
+    if not os.path.isdir(folder):
+        return 0
+    removed = 0
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        try:
+            if os.path.isfile(file_path) and now - os.path.getmtime(file_path) > JOB_RETENTION_SECONDS:
+                os.remove(file_path)
+                removed += 1
+        except OSError:
+            pass
+    return removed
+
+
 def _job_dir_is_fresh(job_id, now=None) -> bool:
     """The job's output dir was written within OUTPUT_CAP_GRACE_SECONDS: its
     clips just came out or someone is editing them, so the size caps leave
@@ -3080,6 +3128,7 @@ async def cleanup_jobs():
             # Simple directory cleanup based on modification time
             # Check OUTPUT_DIR
             _sweep_expired_job_dirs(now)
+            _sweep_live_highlights(now)
 
             for job_id in _sweep_retained_sources(now):
                 print(f"🧹 Dropped retained source for job {job_id}")
@@ -4235,6 +4284,8 @@ def _queue_wait_started(job_id):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global _app_main_loop
+    _app_main_loop = asyncio.get_running_loop()
     # Rehydrate finished jobs from disk before serving (survives restarts).
     _recover_jobs_from_disk()
     # Re-enqueue jobs that were mid-processing when we stopped (redeploy). Their
@@ -4302,6 +4353,15 @@ async def lifespan(app: FastAPI):
                      and not _queue_mode.killed())
     yield
     # Cleanup (optional: cancel worker)
+    global live_monitor_instance
+    if live_monitor_instance:
+        try:
+            if hasattr(live_monitor_instance, "stop"):
+                stop_res = live_monitor_instance.stop()
+                if asyncio.iscoroutine(stop_res):
+                    await stop_res
+        except Exception as e:
+            print(f"⚠️ Error stopping live monitor on shutdown: {e}")
 
 app = FastAPI(lifespan=lifespan)
 
@@ -4771,10 +4831,28 @@ def _job_nice():
         return 10
 
 
+def _python_bin() -> str:
+    """Returns the best python executable (prefers project .venv if available)."""
+    if sys.platform == "win32":
+        venv_py = os.path.join(os.getcwd(), ".venv", "Scripts", "python.exe")
+        if os.path.exists(venv_py):
+            return venv_py
+    else:
+        venv_py = os.path.join(os.getcwd(), ".venv", "bin", "python")
+        if os.path.exists(venv_py):
+            return venv_py
+    return sys.executable
+
+
 def _lower_priority():
+    if sys.platform == "win32" or not hasattr(os, "nice"):
+        return
     n = _job_nice()
     if n:
-        os.nice(n)
+        try:
+            os.nice(n)
+        except Exception:
+            pass
 
 
 def _job_encode_env(env):
@@ -4842,6 +4920,37 @@ def _refresh_partial_result(job_id, output_dir):
         pass
 
 
+# A live clip is kept only when Gemini's own predicted_score reaches this bar. The
+# default is 80: at 70 the quiet moments Gemini rated 75 were delivered.
+LIVE_MIN_PREDICTED_SCORE = int(os.environ.get("LIVE_MIN_PREDICTED_SCORE", "80") or 80)
+
+
+def live_clip_has_score(clip) -> bool:
+    """Gemini gave this clip a numeric predicted_score. Nothing else counts as a rating."""
+    if not isinstance(clip, dict):
+        return False
+    score = clip.get("predicted_score")
+    return isinstance(score, (int, float)) and not isinstance(score, bool)
+
+
+def live_clip_is_viral(clip) -> bool:
+    """Gemini's rating must reach the bar."""
+    return live_clip_has_score(clip) and clip["predicted_score"] >= LIVE_MIN_PREDICTED_SCORE
+
+
+def _remove_clip_file(output_dir, clip):
+    """Deletes a rendered clip's file from its job folder (a clip we will not keep)."""
+    name = os.path.basename(str((clip or {}).get('video_url') or ''))
+    if not name:
+        return
+    path = os.path.join(output_dir, name)
+    try:
+        if os.path.isfile(path):
+            os.remove(path)
+    except OSError:
+        pass
+
+
 def _finish_job(job_id, returncode, output_dir):
     """main.py exited (here or on the remote worker): the job's final status
     and result, from the exit code and what is on disk."""
@@ -4873,12 +4982,36 @@ def _finish_job(job_id, returncode, output_dir):
 
             rendered, missing = _clips_actually_rendered(
                 job_id, output_dir, base_name, clips)
+            below_bar = 0
+            unrated = 0
+            if jobs[job_id].get('is_live_highlight'):
+                # A live clip is kept only when Gemini rates its moment viral. A clip
+                # Gemini never rated comes from the fallback that runs when the Gemini
+                # call fails (no key, quota), and is never delivered.
+                kept = []
+                for clip in rendered:
+                    if live_clip_is_viral(clip):
+                        kept.append(clip)
+                    else:
+                        if live_clip_has_score(clip):
+                            below_bar += 1
+                        else:
+                            unrated += 1
+                        _remove_clip_file(output_dir, clip)
+                rendered = kept
             if not rendered:
                 # Nothing to hand over: fail the job so _settle_reservation
                 # releases the minutes instead of committing them.
                 jobs[job_id]['status'] = 'failed'
-                jobs[job_id]['logs'].append(
-                    "No clips could be rendered from this video.")
+                if unrated:
+                    jobs[job_id]['logs'].append(
+                        "Gemini did not rate this moment (check GEMINI_API_KEY).")
+                elif below_bar:
+                    jobs[job_id]['logs'].append(
+                        f"No moment reached the viral score bar ({LIVE_MIN_PREDICTED_SCORE}).")
+                else:
+                    jobs[job_id]['logs'].append(
+                        "No clips could be rendered from this video.")
             else:
                 if missing:
                     jobs[job_id]['logs'].append(
@@ -4904,7 +5037,7 @@ async def _run_main(job_id, cmd, env, tick=None):
         stderr=subprocess.STDOUT, # Merge stderr to stdout
         env=env,
         cwd=os.getcwd(),
-        preexec_fn=_lower_priority,
+        preexec_fn=_lower_priority if sys.platform != "win32" else None,
     )
     # We need to capture logs in a thread because Popen isn't async
     t_log = threading.Thread(target=enqueue_output, args=(process.stdout, job_id))
@@ -5411,7 +5544,7 @@ async def _probe_youtube_quality(url: str) -> dict:
     def _run():
         try:
             proc = subprocess.run(
-                [sys.executable, QUALITY_PROBE_SCRIPT, "--url", url],
+                [_python_bin(), QUALITY_PROBE_SCRIPT, "--url", url],
                 capture_output=True, timeout=75, env=child_env(),
             )
             return json.loads(proc.stdout.decode(errors="replace").strip() or "{}")
@@ -5906,7 +6039,7 @@ async def process_endpoint(
     # outside Docker is whatever interpreter happens to be first — not the venv
     # running this server. Every job then dies on `import cv2`. The quality
     # probe above already gets this right.
-    cmd = [sys.executable, "-u", "main.py"] # -u for unbuffered
+    cmd = [_python_bin(), "-u", "main.py"] # -u for unbuffered
     env = child_env()
     if api_key:
         env["GEMINI_API_KEY"] = api_key # Override with key from request
@@ -5957,8 +6090,8 @@ async def process_endpoint(
         return int(val) if integer else val
 
     n_clips = _gen_control(target_clips, "target_clips", 1, 15, integer=True)
-    min_secs = _gen_control(clip_min_seconds, "clip_min_seconds", 5, 175)
-    max_secs = _gen_control(clip_max_seconds, "clip_max_seconds", 10, 180)
+    min_secs = _gen_control(clip_min_seconds, "clip_min_seconds", 15, 120)
+    max_secs = _gen_control(clip_max_seconds, "clip_max_seconds", 15, 120)
     if min_secs is not None and max_secs is not None and max_secs < min_secs + 5:
         raise HTTPException(status_code=400,
                             detail="clip_max_seconds must be at least 5s above clip_min_seconds")
@@ -6527,6 +6660,591 @@ async def download_all_clips(job_id: str, request: Request):
         filename=f"openshorts_clips_{job_id[:8]}.zip",
         background=BackgroundTask(remove_zip),
     )
+
+
+# --------------------------------------------------------------------------- #
+# Live Stream Monitoring Integration (Twitch / Kick / YouTube Live)
+# --------------------------------------------------------------------------- #
+
+class LiveMonitorStartRequest(BaseModel):
+    channels: List[str] = []
+    highlight_seconds: Optional[int] = 120
+
+
+def get_channel_embed_url(ch_info: Union[Dict[str, Any], str], host: str = "localhost") -> str:
+    """Computes the embedded live player URL for Twitch, Kick, and YouTube."""
+    try:
+        if isinstance(ch_info, str):
+            parsed = parse_channel(ch_info) if parse_channel else None
+            ch_info = parsed or {"platform": "unknown", "channel": ch_info, "url": ch_info}
+
+        platform = str(ch_info.get("platform", "")).lower()
+        name = str(ch_info.get("channel") or ch_info.get("name") or "").strip()
+        url = str(ch_info.get("url", "")).strip()
+
+        try:
+            import live_monitor
+            if hasattr(live_monitor, "get_embed_url"):
+                res = live_monitor.get_embed_url(ch_info, host)
+                if res:
+                    return res
+        except Exception:
+            pass
+
+        if platform == "twitch":
+            clean_name = name.lower().lstrip("@")
+            return f"https://player.twitch.tv/?channel={clean_name}&parent={host}&muted=true"
+        elif platform == "kick":
+            clean_name = name.lower().lstrip("@")
+            return f"https://player.kick.com/{clean_name}?muted=true"
+        elif platform == "youtube":
+            vid_match = re.search(r"(?:v=|\/live\/|\/watch\?v=|\.be\/)([a-zA-Z0-9_-]{11})", url or name)
+            if vid_match:
+                vid = vid_match.group(1)
+                return f"https://www.youtube.com/embed/{vid}?autoplay=1&mute=1"
+            clean_name = name.lstrip("@")
+            return f"https://www.youtube.com/embed/live_stream?channel={clean_name}&autoplay=1&mute=1"
+        return url
+    except Exception:
+        return ""
+
+
+async def _enqueue_live_clip_async(clip_path: str, meta: Optional[Dict[str, Any]] = None):
+    """Enqueues an extracted highlight clip into OpenShorts' job queue.
+
+    Applies IS_STREAM_SOURCE=1 and WEBCAM_ON_TOP=1 so that camera_inset.py reframes
+    the video into 9:16 vertical shorts with the streamer webcam on top and gameplay
+    on the bottom, and registers it in jobs so it appears in the output / gallery.
+    """
+    try:
+        if not clip_path or not os.path.exists(clip_path):
+            print(f"⚠️ Live clip file does not exist: {clip_path}")
+            return None
+
+        meta = meta or {}
+        channel = meta.get("channel", "live_stream")
+        job_id = str(uuid.uuid4())
+        job_output_dir = os.path.join(OUTPUT_DIR, job_id)
+        _begin_job_dir(job_id)
+        os.makedirs(job_output_dir, exist_ok=True)
+
+        clip_filename = os.path.basename(clip_path)
+        safe_name = _clamp_upload_name(clip_filename)
+        input_path = os.path.join(UPLOAD_DIR, f"{job_id}_{safe_name}")
+        try:
+            if os.path.abspath(clip_path) != os.path.abspath(input_path):
+                shutil.copyfile(clip_path, input_path)
+        except Exception as e:
+            print(f"⚠️ Could not copy live highlight clip to uploads: {e}")
+            input_path = clip_path
+
+        cmd = [_python_bin(), "-u", "main.py", "-i", input_path, "-o", job_output_dir, "--format", "vertical"]
+        env = child_env()
+        api_key = (meta.get("gemini_api_key") if meta else None) or os.environ.get("GEMINI_API_KEY")
+        if api_key:
+            env["GEMINI_API_KEY"] = api_key
+        env.setdefault("PYTHONIOENCODING", "utf-8")
+
+        # Streamer reframe layout: webcam on top, gameplay on bottom
+        env["IS_STREAM_SOURCE"] = "1"
+        env["WEBCAM_ON_TOP"] = "1"
+        # One live moment: Gemini may pick up to three clips; the viral bar decides which are kept.
+        env["CLIP_TARGET_MIN"] = "1"
+        env["CLIP_TARGET_MAX"] = "3"
+        # A channel with a calibrated webcam box skips detection (webcam_boxes.json).
+        webcam_box = webcam_boxes.lookup(meta.get("platform"), meta.get("channel"))
+        if webcam_box:
+            env["WEBCAM_BOX"] = webcam_box
+
+        attestation = {
+            "acknowledged": True,
+            "ip": "127.0.0.1",
+            "user_agent": "LiveMonitor",
+            "timestamp": time.time(),
+            "source": "live_stream",
+            "source_type": "live_stream_audio_highlight",
+        }
+
+        api_base = os.environ.get("PUBLIC_API_URL", "").rstrip("/")
+        lane = getattr(_queue_mode, "NORMAL", 0) if "_queue_mode" in globals() else 0
+
+        _end_submission(job_id)
+        jobs[job_id] = {
+            'status': 'queued',
+            'logs': _TimedLog([f"Live audio highlight clip job {job_id} queued for {channel}."]),
+            'cmd': cmd,
+            'env': env,
+            'output_dir': job_output_dir,
+            'attestation': attestation,
+            'user_id': None,
+            'reservation_id': None,
+            'watermark': False,
+            'partial': None,
+            'webhook_url': None,
+            'webhook_secret': None,
+            'base_url': api_base,
+            'user_plan': 'self_host',
+            'via_api_key': False,
+            'lane': lane,
+            'submitted_at': _arrival_now(),
+            'topup': False,
+            'channel': channel,
+            'is_live_highlight': True,
+            'source_type': "live_stream_audio_highlight",
+        }
+        _end_job_dir(job_id)
+
+        _write_resume_manifest(job_id, cmd, 1, None, None,
+                               watermark=False, base_url=api_base,
+                               lane=lane, submitted_at=jobs[job_id]['submitted_at'],
+                               live_highlight=True, webcam_box=webcam_box)
+
+        # Enqueue with priority=1 (higher priority than standard free FIFO=2)
+        _enqueue_job(job_id, priority=1)
+        print(f"⚡ [LiveMonitor] Enqueued highlight clip {clip_filename} as job {job_id} (priority=1)")
+
+        meta["job_id"] = job_id
+        meta["status"] = "queued"
+
+        clip_record = {
+            "job_id": job_id,
+            "channel": channel,
+            "clip_path": input_path,
+            "timestamp": meta.get("timestamp", time.time()),
+            "duration": meta.get("duration", 45),
+            "reason": meta.get("reason", "audio_energy_spike"),
+            "status": "queued",
+            "source_type": "live_stream_audio_highlight",
+        }
+        _live_captured_clips.append(clip_record)
+        return job_id
+    except Exception as e:
+        print(f"❌ Error enqueuing live clip job: {e}")
+        # Keep the failure visible in the clip list instead of dropping the clip silently.
+        _live_captured_clips.append({
+            "channel": (meta or {}).get("channel", "live_stream"),
+            "clip_path": clip_path,
+            "timestamp": (meta or {}).get("timestamp", time.time()),
+            "duration": (meta or {}).get("duration", 45),
+            "reason": (meta or {}).get("reason", "audio_energy_spike"),
+            "status": "failed",
+            "error": f"could not queue the clip: {e}",
+            "source_type": "live_stream_audio_highlight",
+        })
+        return None
+
+
+def _on_live_clip_ready(*args, **kwargs):
+    """Callback triggered by LiveMonitor when a new highlight clip is extracted."""
+    try:
+        clip_path = None
+        meta = {}
+        if args:
+            if isinstance(args[0], str):
+                clip_path = args[0]
+                if len(args) > 1 and isinstance(args[1], dict):
+                    meta = dict(args[1])
+            elif isinstance(args[0], dict):
+                meta = dict(args[0])
+                clip_path = meta.get("clip_path") or meta.get("path") or meta.get("file")
+        if not clip_path and "clip_path" in kwargs:
+            clip_path = kwargs["clip_path"]
+        if kwargs:
+            meta.update(kwargs)
+
+        loop = _app_main_loop
+        if loop and loop.is_running():
+            asyncio.run_coroutine_threadsafe(_enqueue_live_clip_async(clip_path, meta), loop)
+        else:
+            try:
+                cur_loop = asyncio.get_event_loop()
+                if cur_loop.is_running():
+                    cur_loop.create_task(_enqueue_live_clip_async(clip_path, meta))
+                else:
+                    cur_loop.run_until_complete(_enqueue_live_clip_async(clip_path, meta))
+            except Exception:
+                asyncio.run(_enqueue_live_clip_async(clip_path, meta))
+    except Exception as e:
+        print(f"❌ Exception in _on_live_clip_ready callback: {e}")
+
+
+@app.post("/api/live-monitor/start")
+async def live_monitor_start(req: Optional[LiveMonitorStartRequest] = None, request: Request = None):
+    """Instantiates and starts LiveMonitor for given live channels, returning rich stream info."""
+    global live_monitor_instance, LiveMonitor
+    channels: List[str] = []
+    highlight_seconds: int = 120
+
+    if req and req.channels:
+        channels = [str(c).strip() for c in req.channels if str(c).strip()]
+        if req.highlight_seconds is not None:
+            highlight_seconds = req.highlight_seconds
+    elif request:
+        try:
+            body = await request.json()
+            raw_channels = body.get("channels", [])
+            if isinstance(raw_channels, list):
+                channels = [str(c).strip() for c in raw_channels if str(c).strip()]
+            elif isinstance(raw_channels, str):
+                channels = [c.strip() for c in raw_channels.split(",") if c.strip()]
+            highlight_seconds = int(body.get("highlight_seconds", 120))
+        except Exception:
+            pass
+
+    if not channels:
+        raise HTTPException(status_code=400, detail="Channels list cannot be empty.")
+
+    if LiveMonitor is None:
+        try:
+            import live_monitor
+            LiveMonitor = getattr(live_monitor, "LiveMonitor", None)
+        except ImportError:
+            pass
+
+    if LiveMonitor is None:
+        raise HTTPException(status_code=500, detail="LiveMonitor engine is not installed or available.")
+
+    # Host for Twitch iframe parent embedding
+    host = "localhost"
+    if request:
+        try:
+            host = request.headers.get("host", "localhost").split(":")[0]
+        except Exception:
+            host = "localhost"
+
+    # Channel normalization & strict deduplication by normalized channel ID
+    normalized_channels: List[str] = []
+    seen_ids = set()
+    _parse = parse_channel
+    if _parse is None:
+        try:
+            import live_monitor
+            _parse = getattr(live_monitor, "parse_channel", None)
+        except Exception:
+            pass
+
+    for ch in channels:
+        parsed = None
+        if _parse:
+            try:
+                parsed = _parse(ch)
+            except Exception:
+                pass
+
+        cid = (parsed.get("id") if parsed else str(ch).strip().lower())
+        if cid in seen_ids:
+            continue
+        seen_ids.add(cid)
+
+        if parsed and parsed.get("url"):
+            normalized_channels.append(parsed["url"])
+        else:
+            normalized_channels.append(ch)
+
+    # The dashboard's Gemini key (X-Gemini-Key), read before the lock: awaiting
+    # while holding a threading lock would block the event loop.
+    try:
+        gemini_key = await resolve_gemini(request)
+    except Exception:
+        gemini_key = None
+    with _live_monitor_lock:
+        try:
+            if live_monitor_instance is not None:
+                try:
+                    if hasattr(live_monitor_instance, "stop"):
+                        stop_res = live_monitor_instance.stop()
+                        if asyncio.iscoroutine(stop_res):
+                            await stop_res
+                except Exception as e:
+                    print(f"⚠️ Error stopping previous LiveMonitor: {e}")
+                live_monitor_instance = None
+
+            # Instantiate LiveMonitor with callback
+            try:
+                live_monitor_instance = LiveMonitor(
+                    channels=normalized_channels,
+                    highlight_seconds=highlight_seconds,
+                    on_clip_ready=_on_live_clip_ready,
+                )
+            except TypeError:
+                try:
+                    live_monitor_instance = LiveMonitor(
+                        channels=normalized_channels,
+                        highlight_seconds=highlight_seconds,
+                    )
+                    if hasattr(live_monitor_instance, "on_clip_ready"):
+                        live_monitor_instance.on_clip_ready = _on_live_clip_ready
+                except Exception:
+                    live_monitor_instance = LiveMonitor(normalized_channels)
+                    if hasattr(live_monitor_instance, "on_clip_ready"):
+                        live_monitor_instance.on_clip_ready = _on_live_clip_ready
+
+            # Kept in memory for this monitoring session only; never written to disk.
+            live_monitor_instance.gemini_api_key = gemini_key or None
+            if hasattr(live_monitor_instance, "start"):
+                start_res = live_monitor_instance.start()
+                if asyncio.iscoroutine(start_res):
+                    asyncio.create_task(start_res)
+
+            # Build rich streams metadata with embed URLs for frontend players (strictly deduplicated)
+            rich_streams = []
+            seen_stream_ids = set()
+            if hasattr(live_monitor_instance, "get_status"):
+                status_data = live_monitor_instance.get_status()
+                raw_chans = status_data.get("channels", [])
+                for c in raw_chans:
+                    if isinstance(c, dict):
+                        sid = c.get("id") or c.get("url") or c.get("name")
+                        if sid in seen_stream_ids:
+                            continue
+                        seen_stream_ids.add(sid)
+                        c_dict = dict(c)
+                        c_dict["embed_url"] = get_channel_embed_url(c_dict, host=host)
+                        c_dict["stream_audio_status"] = c_dict.get("status", "monitoring")
+                        rich_streams.append(c_dict)
+                    elif isinstance(c, str):
+                        parsed = _parse(c) if _parse else {"platform": "live", "channel": c, "url": c}
+                        sid = parsed.get("id", f"live_{c}")
+                        if sid in seen_stream_ids:
+                            continue
+                        seen_stream_ids.add(sid)
+                        rich_streams.append({
+                            "id": sid,
+                            "name": parsed.get("channel", c),
+                            "platform": parsed.get("platform", "live"),
+                            "url": parsed.get("url", c),
+                            "embed_url": get_channel_embed_url(parsed, host=host),
+                            "stream_audio_status": "monitoring",
+                            "status": "active",
+                        })
+
+            if not rich_streams:
+                for ch in normalized_channels:
+                    parsed = _parse(ch) if _parse else {"platform": "live", "channel": ch, "url": ch}
+                    sid = parsed.get("id", f"live_{ch}")
+                    if sid in seen_stream_ids:
+                        continue
+                    seen_stream_ids.add(sid)
+                    rich_streams.append({
+                        "id": sid,
+                        "name": parsed.get("channel", ch),
+                        "platform": parsed.get("platform", "live"),
+                        "url": parsed.get("url", ch),
+                        "embed_url": get_channel_embed_url(parsed, host=host),
+                        "stream_audio_status": "monitoring",
+                        "status": "active",
+                    })
+
+            # Clean list of string URLs for channels
+            channel_urls = [
+                s.get("url") or s.get("name") if isinstance(s, dict) else str(s)
+                for s in rich_streams
+            ]
+
+            print(f"🟢 [LiveMonitor] Started monitoring {len(rich_streams)} channel(s)")
+            return {
+                "status": "started",
+                "running": True,
+                "channels": channel_urls,
+                "streams": rich_streams,
+                "highlight_seconds": highlight_seconds,
+            }
+        except Exception as e:
+            print(f"❌ Failed to start LiveMonitor: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to start live monitor: {e}")
+
+
+@app.post("/api/live-monitor/stop")
+async def live_monitor_stop():
+    """Gracefully stops the LiveMonitor."""
+    global live_monitor_instance
+    with _live_monitor_lock:
+        if live_monitor_instance is None:
+            return {"status": "stopped", "running": False, "message": "Live monitor is not running."}
+        try:
+            if hasattr(live_monitor_instance, "stop"):
+                res = live_monitor_instance.stop()
+                if asyncio.iscoroutine(res):
+                    await res
+            live_monitor_instance = None
+            print("🔴 [LiveMonitor] Stopped live monitoring.")
+            return {"status": "stopped", "running": False}
+        except Exception as e:
+            print(f"⚠️ Error stopping live monitor: {e}")
+            live_monitor_instance = None
+            raise HTTPException(status_code=500, detail=f"Error stopping live monitor: {e}")
+
+
+class LiveMonitorClipRequest(BaseModel):
+    channel: str
+    reason: Optional[str] = "manual_instant_highlight"
+
+
+@app.post("/api/live-monitor/clip")
+async def live_monitor_clip(req: Optional[LiveMonitorClipRequest] = None, request: Request = None):
+    """Triggers an immediate highlight clip extraction for a specific live stream.
+
+    The extracted clip is automatically enqueued into OpenShorts' processing queue
+    with IS_STREAM_SOURCE=1 and WEBCAM_ON_TOP=1, running through Whisper, Gemini,
+    camera reframing, and subtitles into a 9:16 vertical short.
+    """
+    global live_monitor_instance
+    channel = ""
+    reason = "manual_instant_highlight"
+
+    if req and req.channel:
+        channel = str(req.channel).strip()
+        if req.reason:
+            reason = req.reason
+    elif request:
+        try:
+            body = await request.json()
+            channel = str(body.get("channel", "")).strip()
+            if body.get("reason"):
+                reason = body.get("reason")
+        except Exception:
+            pass
+
+    if not channel:
+        raise HTTPException(status_code=400, detail="Channel must be specified.")
+
+    if live_monitor_instance is None:
+        raise HTTPException(status_code=400, detail="Live monitor is not running. Please start monitoring first.")
+
+    gemini_key = None
+    if request:
+        try:
+            gemini_key = await resolve_gemini(request)
+        except Exception:
+            pass
+
+    with _live_monitor_lock:
+        try:
+            if hasattr(live_monitor_instance, "trigger_clip"):
+                extra = {"gemini_api_key": gemini_key} if gemini_key else {}
+                res = live_monitor_instance.trigger_clip(channel, reason=reason, **extra)
+                if asyncio.iscoroutine(res):
+                    await res
+            print(f"⚡ [LiveMonitor] Manual instant clip triggered for channel: {channel}")
+            return {
+                "status": "clipping",
+                "channel": channel,
+                "reason": reason,
+                "message": f"Highlight clip extraction triggered for {channel}. Processing into 9:16 vertical short.",
+            }
+        except Exception as e:
+            print(f"❌ Failed to trigger clip for {channel}: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to trigger clip: {e}")
+
+
+@app.get("/api/live-monitor/status")
+async def live_monitor_status(request: Request = None):
+    """Returns rich stream status including embed_url, stream_audio_status, and captured_clips."""
+    global live_monitor_instance, _live_captured_clips
+    try:
+        host = "localhost"
+        if request:
+            try:
+                host = request.headers.get("host", "localhost").split(":")[0]
+            except Exception:
+                host = "localhost"
+
+        # Refresh statuses of captured clips
+        for clip in _live_captured_clips:
+            jid = clip.get("job_id")
+            if jid and jid in jobs:
+                job = jobs[jid]
+                clip["status"] = _presented_status(jid, job)
+                # The newest log line says what the job is doing (or why it stopped).
+                logs = job.get("logs") or []
+                clip["last_log"] = str(logs[-1]) if logs else ""
+                if clip["status"] == "completed" and job.get("result"):
+                    # Re-read each poll: the result is only set once the render finishes.
+                    clip["result"] = _with_download_urls(job.get("result"))
+                elif clip["status"] == "failed":
+                    clip["error"] = clip["last_log"] or "the job failed"
+
+        if live_monitor_instance is not None:
+            running = getattr(live_monitor_instance, "running", getattr(live_monitor_instance, "is_running", False))
+            rich_streams = []
+            engine_clips = []
+            status_data: Dict[str, Any] = {}
+
+            _parse = parse_channel
+            if _parse is None:
+                try:
+                    import live_monitor
+                    _parse = getattr(live_monitor, "parse_channel", None)
+                except Exception:
+                    pass
+
+            if hasattr(live_monitor_instance, "get_status"):
+                status_data = live_monitor_instance.get_status()
+                running = bool(status_data.get("running", running))
+                raw_channels = status_data.get("channels", [])
+                seen_stream_ids = set()
+                for ch in raw_channels:
+                    if isinstance(ch, dict):
+                        sid = ch.get("id") or ch.get("url") or ch.get("name")
+                        if sid in seen_stream_ids:
+                            continue
+                        seen_stream_ids.add(sid)
+                        ch_dict = dict(ch)
+                        ch_dict["embed_url"] = get_channel_embed_url(ch_dict, host=host)
+                        ch_dict["stream_audio_status"] = ch_dict.get("status", "monitoring")
+                        rich_streams.append(ch_dict)
+                    elif isinstance(ch, str):
+                        parsed = _parse(ch) if _parse else {"platform": "live", "channel": ch, "url": ch}
+                        sid = parsed.get("id", f"live_{ch}")
+                        if sid in seen_stream_ids:
+                            continue
+                        seen_stream_ids.add(sid)
+                        rich_streams.append({
+                            "id": sid,
+                            "name": parsed.get("channel", ch),
+                            "platform": parsed.get("platform", "live"),
+                            "url": parsed.get("url", ch),
+                            "embed_url": get_channel_embed_url(parsed, host=host),
+                            "stream_audio_status": "monitoring",
+                            "status": "active" if running else "idle",
+                        })
+                engine_clips = status_data.get("captured_clips", [])
+
+            # Queued clips are listed from _live_captured_clips (they have a job).
+            # The engine only adds its own failed extractions; its successes would duplicate them.
+            combined_clips = list(_live_captured_clips)
+            for ec in engine_clips:
+                if ec.get("status") == "failed" and ec not in combined_clips:
+                    combined_clips.append(ec)
+
+            channel_urls = [
+                s.get("url") or s.get("name") if isinstance(s, dict) else str(s)
+                for s in rich_streams
+            ]
+
+            return {
+                "running": running,
+                "channels": channel_urls,
+                "streams": rich_streams,
+                "captured_clips": combined_clips,
+                "transcribing": status_data.get("transcribing", False),
+            }
+        else:
+            return {
+                "running": False,
+                "channels": [],
+                "streams": [],
+                "captured_clips": list(_live_captured_clips),
+            }
+    except Exception as e:
+        print(f"⚠️ Error querying live monitor status: {e}")
+        return {
+            "running": False,
+            "channels": [],
+            "streams": [],
+            "captured_clips": list(_live_captured_clips),
+            "error": str(e),
+        }
 
 
 # --- Project restore (paid mode) --------------------------------------------

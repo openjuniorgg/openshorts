@@ -29,6 +29,7 @@ import punch_in
 import screencast_layout
 import layout_ranges
 import split_layout
+import twitch_signals
 from ffmpeg_utils import (video_encode_args, blurred_backdrop, escape_filter_value,
                           QUALITY_FAST, METADATA_SCRUB)
 
@@ -748,8 +749,15 @@ def render(input_video, final_output_video, aspect_ratio, content_ranges=None,
     # asking Gemini: offered as a fourth choice it answered "screencast" on all
     # five clips that had one, while camera_inset.detect finds all five with no
     # false positives. The box is fixed for the whole video, so it is found once.
+    should_check_inset = (
+        (content_ranges and screencast_layout.ENABLED)
+        or screencast_layout.ENABLED
+        or twitch_signals.is_stream_source()
+        or os.environ.get("IS_STREAM_SOURCE") == "1"
+        or os.environ.get("AUTO_LAYOUT") == "1"
+    )
     inset = None
-    if content_ranges and screencast_layout.ENABLED:
+    if should_check_inset and not force_strategy and not passthrough:
         try:
             inset = camera_inset.detect(input_video)
         except Exception as e:
@@ -800,6 +808,20 @@ def render(input_video, final_output_video, aspect_ratio, content_ranges=None,
                                       start_f, end_f, centre)
                 if crop:
                     focus_crops[start_f] = crop
+
+    # If an inset was detected across the video, upgrade any scene where the webcam
+    # is present to INSET (streamer layout). Scenes without webcam inset keep their
+    # original strategies (TRACK, SPLIT, GENERAL, SCREENCAST, WIDE, etc.).
+    if inset:
+        for scene_idx, (start_f, end_f) in enumerate(scene_boundaries):
+            if start_f not in insets:
+                if camera_inset.present_in_scene(input_video, inset, start_f, end_f):
+                    strategies[scene_idx] = 'INSET'
+                    insets[start_f] = inset
+                    splits.pop(start_f, None)
+                    screencasts.pop(start_f, None)
+                    focus_crops.pop(start_f, None)
+                    inset_count += 1
     if screencasts:
         print(f"   🖥️ SCREENCAST layout on {len(screencasts)} scene(s)")
     if wide_count:
@@ -870,7 +892,8 @@ def render(input_video, final_output_video, aspect_ratio, content_ranges=None,
 
             if strategy == 'INSET':
                 graph = camera_inset.inset_filtergraph(
-                    orig_w, orig_h, out_w, out_h, insets.get(start_f, inset))
+                    orig_w, orig_h, out_w, out_h, insets.get(start_f, inset),
+                    webcam_on_top=True)
             elif strategy == 'SCREENCAST':
                 graph = screencast_layout.screencast_filtergraph(
                     orig_w, orig_h, out_w, out_h, *screencasts[start_f])
